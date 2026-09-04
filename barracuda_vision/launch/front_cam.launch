@@ -1,0 +1,22 @@
+<launch>
+    <param name = "camera_index" value= "0"/>
+    <param name = "flip_cam" value= "-1"/>
+    <param name = "flip_status" value= "True"/>
+    <node pkg="barracuda_vision" type="front_pub.py" name="front_publish" output="screen"/>
+
+
+    <param name = "mode_hsv" value= "0"/>
+    <param name = "Hue_min" value= "7"/>
+    <param name = "Hue_max" value= "15"/>
+    <param name = "Sat_min" value= "150"/>
+    <param name = "Sat_max" value= "255"/>
+    <param name = "Val_min" value= "150"/>
+    <param name = "Val_max" value= "255"/>
+    <param name = "rad_ball" value= "8"/>
+    <param name = "focal_lenght" value= "240"/>
+    <node pkg="barracuda_vision" type="hsvFront.py" name="hsv_node" ns="hsv_ball/front_hsv" output="screen"/>
+
+    <node pkg="barracuda_vision" type="front_merge.py" name="front_merge" output="screen"/>
+
+
+</launch>

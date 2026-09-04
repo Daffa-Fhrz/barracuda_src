@@ -1,0 +1,532 @@
+{
+	"backtrace" : 4,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"add_custom_target",
+			"include",
+			"generate_messages",
+			"add_dependencies"
+		],
+		"files" : 
+		[
+			"build/rosbridge_suite/rosapi/cmake/rosapi-genmsg.cmake",
+			"/opt/ros/noetic/share/genmsg/cmake/genmsg-extras.cmake",
+			"rosbridge_suite/rosapi/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 2
+			},
+			{
+				"command" : 2,
+				"file" : 2,
+				"line" : 41,
+				"parent" : 0
+			},
+			{
+				"command" : 1,
+				"file" : 1,
+				"line" : 307,
+				"parent" : 1
+			},
+			{
+				"file" : 0,
+				"parent" : 2
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 321,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 338,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 336,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 352,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 344,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 348,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 368,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 346,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 364,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 374,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 334,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 332,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 330,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 370,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 340,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 350,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 376,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 354,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 372,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 328,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 356,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 360,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 342,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 358,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 378,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 362,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 366,
+				"parent" : 3
+			}
+		]
+	},
+	"dependencies" : 
+	[
+		{
+			"backtrace" : 5,
+			"id" : "_rosapi_generate_messages_check_deps_GetTime::@a292b5fac9fda46502d3"
+		},
+		{
+			"backtrace" : 6,
+			"id" : "_rosapi_generate_messages_check_deps_GetParamNames::@a292b5fac9fda46502d3"
+		},
+		{
+			"backtrace" : 7,
+			"id" : "_rosapi_generate_messages_check_deps_ServiceHost::@a292b5fac9fda46502d3"
+		},
+		{
+			"backtrace" : 8,
+			"id" : "_rosapi_generate_messages_check_deps_Nodes::@a292b5fac9fda46502d3"
+		},
+		{
+			"backtrace" : 9,
+			"id" : "_rosapi_generate_messages_check_deps_Publishers::@a292b5fac9fda46502d3"
+		},
+		{
+			"backtrace" : 10,
+			"id" : "_rosapi_generate_messages_check_deps_SetParam::@a292b5fac9fda46502d3"
+		},
+		{
+			"backtrace" : 11,
+			"id" : "_rosapi_generate_messages_check_deps_NodeDetails::@a292b5fac9fda46502d3"
+		},
+		{
+			"backtrace" : 12,
+			"id" : "_rosapi_generate_messages_check_deps_ServicesForType::@a292b5fac9fda46502d3"
+		},
+		{
+			"backtrace" : 13,
+			"id" : "_rosapi_generate_messages_check_deps_TopicsAndRawTypes::@a292b5fac9fda46502d3"
+		},
+		{
+			"backtrace" : 14,
+			"id" : "_rosapi_generate_messages_check_deps_GetParam::@a292b5fac9fda46502d3"
+		},
+		{
+			"backtrace" : 15,
+			"id" : "_rosapi_generate_messages_check_deps_GetActionServers::@a292b5fac9fda46502d3"
+		},
+		{
+			"backtrace" : 16,
+			"id" : "_rosapi_generate_messages_check_deps_DeleteParam::@a292b5fac9fda46502d3"
+		},
+		{
+			"backtrace" : 17,
+			"id" : "_rosapi_generate_messages_check_deps_Subscribers::@a292b5fac9fda46502d3"
+		},
+		{
+			"backtrace" : 18,
+			"id" : "_rosapi_generate_messages_check_deps_HasParam::@a292b5fac9fda46502d3"
+		},
+		{
+			"backtrace" : 19,
+			"id" : "_rosapi_generate_messages_check_deps_SearchParam::@a292b5fac9fda46502d3"
+		},
+		{
+			"backtrace" : 20,
+			"id" : "_rosapi_generate_messages_check_deps_TopicsForType::@a292b5fac9fda46502d3"
+		},
+		{
+			"backtrace" : 21,
+			"id" : "_rosapi_generate_messages_check_deps_ServiceNode::@a292b5fac9fda46502d3"
+		},
+		{
+			"backtrace" : 22,
+			"id" : "_rosapi_generate_messages_check_deps_Topics::@a292b5fac9fda46502d3"
+		},
+		{
+			"backtrace" : 23,
+			"id" : "_rosapi_generate_messages_check_deps_TypeDef::@a292b5fac9fda46502d3"
+		},
+		{
+			"backtrace" : 24,
+			"id" : "_rosapi_generate_messages_check_deps_ServiceProviders::@a292b5fac9fda46502d3"
+		},
+		{
+			"backtrace" : 25,
+			"id" : "_rosapi_generate_messages_check_deps_ServiceResponseDetails::@a292b5fac9fda46502d3"
+		},
+		{
+			"backtrace" : 26,
+			"id" : "_rosapi_generate_messages_check_deps_MessageDetails::@a292b5fac9fda46502d3"
+		},
+		{
+			"backtrace" : 27,
+			"id" : "_rosapi_generate_messages_check_deps_ServiceRequestDetails::@a292b5fac9fda46502d3"
+		},
+		{
+			"backtrace" : 28,
+			"id" : "_rosapi_generate_messages_check_deps_TopicType::@a292b5fac9fda46502d3"
+		},
+		{
+			"backtrace" : 29,
+			"id" : "_rosapi_generate_messages_check_deps_Services::@a292b5fac9fda46502d3"
+		},
+		{
+			"backtrace" : 30,
+			"id" : "_rosapi_generate_messages_check_deps_ServiceType::@a292b5fac9fda46502d3"
+		}
+	],
+	"id" : "rosapi_generate_messages_cpp::@a292b5fac9fda46502d3",
+	"name" : "rosapi_generate_messages_cpp",
+	"paths" : 
+	{
+		"build" : "rosbridge_suite/rosapi",
+		"source" : "rosbridge_suite/rosapi"
+	},
+	"sourceGroups" : 
+	[
+		{
+			"name" : "",
+			"sourceIndexes" : 
+			[
+				0
+			]
+		},
+		{
+			"name" : "CMake Rules",
+			"sourceIndexes" : 
+			[
+				1,
+				2,
+				3,
+				4,
+				5,
+				6,
+				7,
+				8,
+				9,
+				10,
+				11,
+				12,
+				13,
+				14,
+				15,
+				16,
+				17,
+				18,
+				19,
+				20,
+				21,
+				22,
+				23,
+				24,
+				25,
+				26,
+				27
+			]
+		}
+	],
+	"sources" : 
+	[
+		{
+			"backtrace" : 4,
+			"isGenerated" : true,
+			"path" : "build/rosbridge_suite/rosapi/CMakeFiles/rosapi_generate_messages_cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/rosbridge_suite/rosapi/CMakeFiles/rosapi_generate_messages_cpp.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/include/rosapi/TypeDef.h.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/include/rosapi/DeleteParam.h.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/include/rosapi/GetActionServers.h.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/include/rosapi/GetParam.h.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/include/rosapi/GetParamNames.h.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/include/rosapi/GetTime.h.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/include/rosapi/HasParam.h.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/include/rosapi/MessageDetails.h.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/include/rosapi/Nodes.h.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/include/rosapi/NodeDetails.h.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/include/rosapi/Publishers.h.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/include/rosapi/SearchParam.h.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/include/rosapi/ServiceHost.h.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/include/rosapi/ServiceNode.h.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/include/rosapi/ServiceProviders.h.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/include/rosapi/ServiceRequestDetails.h.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/include/rosapi/ServiceResponseDetails.h.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/include/rosapi/Services.h.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/include/rosapi/ServicesForType.h.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/include/rosapi/ServiceType.h.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/include/rosapi/SetParam.h.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/include/rosapi/Subscribers.h.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/include/rosapi/Topics.h.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/include/rosapi/TopicsAndRawTypes.h.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/include/rosapi/TopicsForType.h.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/include/rosapi/TopicType.h.rule",
+			"sourceGroupIndex" : 1
+		}
+	],
+	"type" : "UTILITY"
+}

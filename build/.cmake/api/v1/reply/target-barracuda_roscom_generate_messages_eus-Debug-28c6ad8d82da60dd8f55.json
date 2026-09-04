@@ -1,0 +1,253 @@
+{
+	"backtrace" : 4,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"add_custom_target",
+			"include",
+			"generate_messages",
+			"add_dependencies"
+		],
+		"files" : 
+		[
+			"build/barracuda_roscom/cmake/barracuda_roscom-genmsg.cmake",
+			"/opt/ros/noetic/share/genmsg/cmake/genmsg-extras.cmake",
+			"barracuda_roscom/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 2
+			},
+			{
+				"command" : 2,
+				"file" : 2,
+				"line" : 81,
+				"parent" : 0
+			},
+			{
+				"command" : 1,
+				"file" : 1,
+				"line" : 307,
+				"parent" : 1
+			},
+			{
+				"file" : 0,
+				"parent" : 2
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 212,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 536,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 533,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 231,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 223,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 219,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 225,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 227,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 221,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 229,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 233,
+				"parent" : 3
+			}
+		]
+	},
+	"dependencies" : 
+	[
+		{
+			"backtrace" : 5,
+			"id" : "std_msgs_generate_messages_eus::@3d95d338a17b553c0cb5"
+		},
+		{
+			"backtrace" : 6,
+			"id" : "geometry_msgs_generate_messages_eus::@c7e918d7aa39b5e7d61c"
+		},
+		{
+			"backtrace" : 7,
+			"id" : "_barracuda_roscom_generate_messages_check_deps_ballCatch::@f6c09d9a120066edc21e"
+		},
+		{
+			"backtrace" : 8,
+			"id" : "_barracuda_roscom_generate_messages_check_deps_ballInfo::@f6c09d9a120066edc21e"
+		},
+		{
+			"backtrace" : 9,
+			"id" : "_barracuda_roscom_generate_messages_check_deps_speedRobot::@f6c09d9a120066edc21e"
+		},
+		{
+			"backtrace" : 10,
+			"id" : "_barracuda_roscom_generate_messages_check_deps_ballTravel::@f6c09d9a120066edc21e"
+		},
+		{
+			"backtrace" : 11,
+			"id" : "_barracuda_roscom_generate_messages_check_deps_currentPose::@f6c09d9a120066edc21e"
+		},
+		{
+			"backtrace" : 12,
+			"id" : "_barracuda_roscom_generate_messages_check_deps_frontInfo::@f6c09d9a120066edc21e"
+		},
+		{
+			"backtrace" : 13,
+			"id" : "_barracuda_roscom_generate_messages_check_deps_penggiring::@f6c09d9a120066edc21e"
+		},
+		{
+			"backtrace" : 14,
+			"id" : "_barracuda_roscom_generate_messages_check_deps_omniInfo::@f6c09d9a120066edc21e"
+		}
+	],
+	"id" : "barracuda_roscom_generate_messages_eus::@f6c09d9a120066edc21e",
+	"name" : "barracuda_roscom_generate_messages_eus",
+	"paths" : 
+	{
+		"build" : "barracuda_roscom",
+		"source" : "barracuda_roscom"
+	},
+	"sourceGroups" : 
+	[
+		{
+			"name" : "",
+			"sourceIndexes" : 
+			[
+				0
+			]
+		},
+		{
+			"name" : "CMake Rules",
+			"sourceIndexes" : 
+			[
+				1,
+				2,
+				3,
+				4,
+				5,
+				6,
+				7,
+				8,
+				9,
+				10
+			]
+		}
+	],
+	"sources" : 
+	[
+		{
+			"backtrace" : 4,
+			"isGenerated" : true,
+			"path" : "build/barracuda_roscom/CMakeFiles/barracuda_roscom_generate_messages_eus",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/barracuda_roscom/CMakeFiles/barracuda_roscom_generate_messages_eus.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/share/roseus/ros/barracuda_roscom/msg/speedRobot.l.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/share/roseus/ros/barracuda_roscom/msg/frontInfo.l.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/share/roseus/ros/barracuda_roscom/msg/ballInfo.l.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/share/roseus/ros/barracuda_roscom/msg/ballTravel.l.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/share/roseus/ros/barracuda_roscom/msg/currentPose.l.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/share/roseus/ros/barracuda_roscom/msg/penggiring.l.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/share/roseus/ros/barracuda_roscom/msg/ballCatch.l.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/share/roseus/ros/barracuda_roscom/msg/omniInfo.l.rule",
+			"sourceGroupIndex" : 1
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "build/devel/share/roseus/ros/barracuda_roscom/manifest.l.rule",
+			"sourceGroupIndex" : 1
+		}
+	],
+	"type" : "UTILITY"
+}

@@ -1,0 +1,33 @@
+<launch>
+    <node pkg="com_vision" name="cv_hsv_node" type="cv_hsv.py" ns="com_vision/omni_cam" output="screen">
+
+        <param name="hue_min_white" value="0"/>
+        <param name="hue_max_white" value="180"/>
+        <param name="sat_min_white" value="0"/>
+        <param name="sat_max_white" value="25"/>
+        <param name="val_min_white" value="200"/>
+        <param name="val_max_white" value="255"/>
+
+        <param name="init_v1" value="65"/>
+        <param name="init_v2" value="-65"/>
+        <param name="init_h1" value="65"/>
+        <param name="init_h2" value="-65"/>
+        <param name="init_slope" value="0"/>
+
+        <!--Dummy-->
+
+        <param name="dummy" value="False"/>
+
+        <!-- <param name="hue_min_black" value="5"/>
+        <param name="hue_max_black" value="190"/>
+        <param name="sat_min_black" value="0"/>
+        <param name="sat_max_black" value="190"/>
+        <param name="val_min_black" value="40"/>
+        <param name="val_max_black" value="80"/> -->
+
+        <!-- <param name="crop_side" value="170"/>
+        <param name="crop_top" value="90"/>
+        <param name="crop_bottom" value="90"/> -->
+    </node>
+
+</launch>

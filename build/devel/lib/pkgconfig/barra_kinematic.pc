@@ -1,0 +1,8 @@
+prefix=/home/sogo/sogo_ws/src/build/devel
+
+Name: barra_kinematic
+Description: Description of barra_kinematic
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

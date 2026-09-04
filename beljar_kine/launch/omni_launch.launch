@@ -1,0 +1,47 @@
+<launch>
+    <node pkg="rosserial_python" name="serial_node" type="serial_node.py">
+        <param name="port" type="string" value="/dev/ttyACM0"/>
+        <param name="baud" type="int" value="57600"/>
+    </node>
+    <node pkg="com_vision" name="cv_hsv_node" type="cv_hsv.py" ns="com_vision/front_cam" output="screen">
+        <param name="cam_index" value="0"/>
+        <param name="flip_frame" value="1"/>
+        <param name="flip_code" value="1"/>
+        <param name="exposure_val" value="0"/>
+        <param name="blur_val" value="17"/>
+
+        <param name="x_offset" value="0"/>
+        <param name="y_offset" value="0"/>
+
+        <param name="hue_min" value="5"/>
+        <param name="hue_max" value="15"/>
+        <param name="sat_min" value="100"/>
+        <param name="sat_max" value="255"/>
+        <param name="val_min" value="100"/>
+        <param name="val_max" value="255"/>
+
+        <!--Init-->
+
+        <param name="init" value="True"/>
+
+        <param name="hue_min_white" value="0"/>
+        <param name="hue_max_white" value="180"/>
+        <param name="sat_min_white" value="0"/>
+        <param name="sat_max_white" value="25"/>
+        <param name="val_min_white" value="200"/>
+        <param name="val_max_white" value="255"/>
+
+        <param name="init_v1" value="65"/>
+        <param name="init_v2" value="-65"/>
+        <param name="init_h1" value="65"/>
+        <param name="init_h2" value="-65"/>
+        <param name="init_slope" value="0"/>
+
+        <!--Dummy-->
+
+        <param name="dummy" value="False"/>
+
+    </node>
+    <node pkg="beljar_kine" type="inverse_formula.py" name="inverse_fx" output="screen">
+    </node>
+</launch>

@@ -1,0 +1,109 @@
+{
+	"backtrace" : 4,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"add_custom_target",
+			"include",
+			"generate_messages",
+			"add_dependencies"
+		],
+		"files" : 
+		[
+			"build/rosserial/rosserial_arduino/cmake/rosserial_arduino-genmsg.cmake",
+			"/opt/ros/noetic/share/genmsg/cmake/genmsg-extras.cmake",
+			"rosserial/rosserial_arduino/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 2
+			},
+			{
+				"command" : 2,
+				"file" : 2,
+				"line" : 18,
+				"parent" : 0
+			},
+			{
+				"command" : 1,
+				"file" : 1,
+				"line" : 307,
+				"parent" : 1
+			},
+			{
+				"file" : 0,
+				"parent" : 2
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 14,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 60,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 101,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 183,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 142,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 224,
+				"parent" : 3
+			}
+		]
+	},
+	"dependencies" : 
+	[
+		{
+			"backtrace" : 5,
+			"id" : "rosserial_arduino_generate_messages_cpp::@f044599621fc13500acc"
+		},
+		{
+			"backtrace" : 6,
+			"id" : "rosserial_arduino_generate_messages_eus::@f044599621fc13500acc"
+		},
+		{
+			"backtrace" : 7,
+			"id" : "rosserial_arduino_generate_messages_nodejs::@f044599621fc13500acc"
+		},
+		{
+			"backtrace" : 8,
+			"id" : "rosserial_arduino_generate_messages_lisp::@f044599621fc13500acc"
+		},
+		{
+			"backtrace" : 9,
+			"id" : "rosserial_arduino_generate_messages_py::@f044599621fc13500acc"
+		}
+	],
+	"id" : "rosserial_arduino_generate_messages::@f044599621fc13500acc",
+	"name" : "rosserial_arduino_generate_messages",
+	"paths" : 
+	{
+		"build" : "rosserial/rosserial_arduino",
+		"source" : "rosserial/rosserial_arduino"
+	},
+	"sources" : [],
+	"type" : "UTILITY"
+}

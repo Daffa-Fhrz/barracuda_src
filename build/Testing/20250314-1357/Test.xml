@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Site BuildName="(empty)"
+	BuildStamp="20250314-1357-Experimental"
+	Name="sogo-pc"
+	Generator="ctest-3.16.3"
+	CompilerName="/usr/bin/g++"
+	CompilerVersion="9.4.0"
+	OSName="Linux"
+	Hostname="sogo-pc"
+	OSRelease="5.15.0-131-generic"
+	OSVersion="#141~20.04.1-Ubuntu SMP Thu Jan 16 18:38:51 UTC 2025"
+	OSPlatform="x86_64"
+	Is64Bits="1"
+	VendorString="AuthenticAMD"
+	VendorID="Advanced Micro Devices"
+	FamilyID="25"
+	ModelID="80"
+	ProcessorCacheSize="512"
+	NumberOfLogicalCPU="12"
+	NumberOfPhysicalCPU="6"
+	TotalVirtualMemory="2047"
+	TotalPhysicalMemory="15330"
+	LogicalProcessorsPerPhysical="2"
+	ProcessorClockFrequency="1979.26"
+	>
+	<Testing>
+		<StartDateTime>Mar 14 20:57 WIB</StartDateTime>
+		<StartTestTime>1741960653</StartTestTime>
+		<TestList/>
+		<EndDateTime>Mar 14 20:57 WIB</EndDateTime>
+		<EndTestTime>1741960653</EndTestTime>
+		<ElapsedMinutes>0</ElapsedMinutes>
+	</Testing>
+</Site>

@@ -1,0 +1,2 @@
+set(barracuda_roscom_MESSAGE_FILES "/home/sogo/sogo_ws/src/barracuda_roscom/msg/speedRobot.msg;/home/sogo/sogo_ws/src/barracuda_roscom/msg/frontInfo.msg;/home/sogo/sogo_ws/src/barracuda_roscom/msg/ballInfo.msg;/home/sogo/sogo_ws/src/barracuda_roscom/msg/ballTravel.msg;/home/sogo/sogo_ws/src/barracuda_roscom/msg/currentPose.msg;/home/sogo/sogo_ws/src/barracuda_roscom/msg/penggiring.msg;/home/sogo/sogo_ws/src/barracuda_roscom/msg/ballCatch.msg;/home/sogo/sogo_ws/src/barracuda_roscom/msg/omniInfo.msg")
+set(barracuda_roscom_SERVICE_FILES "")

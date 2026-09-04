@@ -1,0 +1,8 @@
+prefix=/home/sogo/sogo_ws/src/build/devel
+
+Name: barracuda_kinematic
+Description: Description of barracuda_kinematic
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

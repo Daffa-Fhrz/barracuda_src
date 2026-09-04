@@ -1,0 +1,7 @@
+set(barracuda_kinematic_SETUP_PY_SETUP_MODULE "distutils.core")
+set(barracuda_kinematic_SETUP_PY_VERSION "0.0.0")
+set(barracuda_kinematic_SETUP_PY_SCRIPTS "")
+set(barracuda_kinematic_SETUP_PY_PACKAGES "barracuda_kinematic")
+set(barracuda_kinematic_SETUP_PY_PACKAGE_DIRS "src/barracuda_kinematic")
+set(barracuda_kinematic_SETUP_PY_MODULES "")
+set(barracuda_kinematic_SETUP_PY_MODULE_DIRS "")

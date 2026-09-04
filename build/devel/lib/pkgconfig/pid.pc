@@ -1,0 +1,8 @@
+prefix=/home/sogo/sogo_ws/src/build/devel
+
+Name: pid
+Description: Description of pid
+Version: 0.0.28
+Cflags: -I/home/sogo/sogo_ws/src/build/devel/include -I/home/sogo/sogo_ws/src/pid/include
+Libs: -L${prefix}/lib 
+Requires: roscpp std_msgs message_runtime dynamic_reconfigure

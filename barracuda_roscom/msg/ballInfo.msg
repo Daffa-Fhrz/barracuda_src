@@ -1,0 +1,3 @@
+int32 x         # X POSITION BALL
+int32 y         # Y POSITION BALL
+int32 radius    # RADIUS BOLA DITERIMA DARI CONTOUR

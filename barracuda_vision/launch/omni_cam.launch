@@ -1,0 +1,22 @@
+<launch>
+
+    <param name="camera_index" value="0"/>
+    <param name="flip_cam" value="1"/>
+    <param name="flip_status" value="false"/>
+    <node pkg="barracuda_vision" type="omni_pub.py" name="omni_publish" output="screen"/>
+
+
+    <param name="mode_hsv" value="0"/>
+    <param name="Hue_min" value="0"/>
+    <param name="Hue_max" value="15"/>
+    <param name="Sat_min" value="100"/>
+    <param name="Sat_max" value="255"/>
+    <param name="Val_min" value="100"/>
+    <param name="Val_max" value="255"/>
+    <param name="rad_ball" value="8"/>
+    <param name="focal_lenght" value="2400"/>
+    <node pkg="barracuda_vision" type="hsvOmni.py" name="hsv_node" ns="hsv_ball/omni_hsv" output="screen"/>
+
+    <node pkg="barracuda_vision" type="omni_merge.py" name="omni_merge" output="screen"/>
+
+</launch>

@@ -1,0 +1,17 @@
+<launch>
+    <!-- Node untuk kamera dengan index 0 -->
+    <node name="omicam_publish" pkg="camera" type="camera_pub.py" output="screen">
+        <param name="camera_index" value="0"/>
+    </node>
+
+    <!-- Node untuk kamera dengan index 1 -->
+    <node name="hsv_omnicam" pkg="camera" type="hsv_pub.py" output="screen">
+        <param name="index" value="0"/>
+    </node>
+
+        <!-- Node untuk kamera dengan index 1 -->
+    <node name="omnicam_view" pkg="camera" type="omnicam_merge.py" output="screen">
+    </node>
+    <node name="kinematicIK_node" pkg="kinematic" type="IK_control.py" output="screen">
+    </node>
+</launch>

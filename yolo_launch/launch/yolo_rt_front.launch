@@ -1,0 +1,5 @@
+<launch>
+    <include file="$(find ultralytics_ros)/launch/tracker_rt2.launch" />
+    <include file="$(find usb_cam_launch)/launch/usb_cam_front.launch" />
+    <node name="YoloProcessBarra2" pkg="yolo_barra" type="process_front.py" output="screen" />
+</launch>

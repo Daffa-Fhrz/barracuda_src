@@ -1,0 +1,4 @@
+<launch>
+    <include file="$(find yolo_launch)/launch/yolo_rt_front.launch" />
+    <include file="$(find yolo_launch)/launch/yolo_rt_omni.launch" />
+</launch>

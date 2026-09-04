@@ -1,0 +1,18 @@
+<launch>
+
+<!--Communication-->
+    <!-- <node pkg="rosserial_python" name="serial_node" type="serial_node.py">
+        <param name="port" type="string" value="/dev/ttyACM0"/>
+        <param name="baud" type="int" value="57600"/>
+    </node> -->
+    <!-- <node pkg="local_strategy" name="serial_node" type="serial_node.py" ns="local_strategy" output="screen">
+        <param name="port" type="string" value="/dev/ttyACM0"/>
+        <param name="baud" type="int" value="57600"/>
+    </node> -->
+
+    <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch">
+        <arg name="port" value="9090"/>
+    </include>
+
+
+</launch>

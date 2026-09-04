@@ -1,0 +1,4 @@
+<launch>
+    <include file="$(find barracuda_vision)/launch/omni_cam.launch" />
+    <include file="$(find barracuda_vision)/launch/front_cam.launch" />
+</launch>
