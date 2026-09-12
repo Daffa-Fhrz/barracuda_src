@@ -34,7 +34,11 @@ class algo:
 
     def __init__(self):
 
-        rospy.init_node("YoloProcessBarra")
+        # FIX: sebelumnya sama-sama pakai nama "YoloProcessBarra" kayak
+        # process_front.py -- kalau dijalanin bareng tanpa remap nama di
+        # launch file, ROS bakal nendang salah satu (nama node HARUS unik
+        # per proses). Sekarang dikasih suffix biar beda.
+        rospy.init_node("YoloProcessBarra_omni")
 
         # =========================
         # SUBSCRIBER
@@ -56,14 +60,20 @@ class algo:
         # PUBLISHER
         # =========================
 
+        # FIX: topic ballInfo/ballTravel/ballStatus di bawah ini dikasih
+        # suffix "_yolo" -- ini jadi topic MENTAH (bukan final), yang
+        # dengerin sekarang bukan kinematic lagi, tapi node vision_fusion.py
+        # yang gabungin hasil YOLO ini sama hasil HSV, baru fusion-nya yang
+        # publish ke topic final (/Barracuda_Yolo/omni/ballInfo dst) yang
+        # didengerin kinematic. Lihat vision_fusion.py.
         self.ballInfoPub = rospy.Publisher(
-            "/Barracuda_Yolo/omni/ballInfo",
+            "/Barracuda_Yolo/omni/ballInfo_yolo",
             ballInfo,
             queue_size=10
         )
 
         self.ballTravelPub = rospy.Publisher(
-            "/Barracuda_Yolo/omni/ballTravel",
+            "/Barracuda_Yolo/omni/ballTravel_yolo",
             ballTravel,
             queue_size=10
         )
@@ -92,7 +102,11 @@ class algo:
             queue_size=10
         )
 
-        self.ballStatus_pub = rospy.Publisher("/barracuda_vision/camera/omni/ballStatus", Bool, queue_size=1)
+        # FIX: sebelumnya SAMA PERSIS sama topic yg dipakai hsvOmni.py --
+        # kalau dua-duanya jalan bareng, tabrakan publisher & kinematic
+        # nerima status ngaco dari 2 sumber independen. Dikasih suffix
+        # "_yolo" biar jadi topic mentah, digabung di vision_fusion.py.
+        self.ballStatus_pub = rospy.Publisher("/barracuda_vision/camera/omni/ballStatus_yolo", Bool, queue_size=1)
 
         # =========================
         # CV BRIDGE
@@ -141,6 +155,7 @@ class algo:
         # =========================
 
         self.ball_data = None
+        self.ballTravel = None
 
         self.robot_data = []
         self.goal_data = None

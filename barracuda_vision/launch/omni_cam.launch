@@ -1,10 +1,16 @@
 <launch>
 
+    <!-- FIX: omni_pub.py DIHAPUS dari sini. Sebelumnya dia buka kamera
+         via OpenCV cv2.VideoCapture(camera_index=0), sama-sama index 0
+         kayak front_pub.py, jadi dua-duanya rebutan device kamera yang
+         sama ("tabrakan usb cam"). Sekarang gambar mentah omni didapat
+         dari usb_cam driver (lihat usb_cam.launch, device /dev/video0),
+         yang jalan di full_vision.launch.
     <param name="camera_index" value="0"/>
     <param name="flip_cam" value="1"/>
     <param name="flip_status" value="false"/>
     <node pkg="barracuda_vision" type="omni_pub.py" name="omni_publish" output="screen"/>
-
+    -->
 
     <param name="mode_hsv" value="0"/>
     <param name="Hue_min" value="0"/>

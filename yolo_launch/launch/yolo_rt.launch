@@ -1,6 +1,9 @@
 <launch>
     <include file="$(find ultralytics_ros)/launch/tracker_rt.launch" />
-    <include file="$(find usb_cam_launch)/launch/usb_cam.launch" />
+    <!-- FIX: include usb_cam_launch yang lama DIHAPUS dari sini. Ini
+         penyebab lain dari "tabrakan usb cam", driver usb_cam sekarang
+         cuma di-launch SEKALI, dari usb_cam.launch yang di-include di
+         full_vision.launch (bareng include yolo_rt.launch ini). -->
     <node name="YoloProcessBarraOMni" pkg="yolo_barra" type="process_omni.py" output="screen" />
     <node name="YoloProcessBarraFront" pkg="yolo_barra" type="process_front.py" output="screen" />
 </launch>

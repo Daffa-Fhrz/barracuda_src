@@ -101,10 +101,17 @@ class mergeFront:
     def __init__(self):
         rospy.init_node('frontcam_view', anonymous=False)
         self.bridge = CvBridge()
-        self.image_get = rospy.Subscriber('/barracuda_vision/camera/front_raw', Image, self.mergeView)
-        self.ballInfo_get = rospy.Subscriber('/barracuda_vision/camera/front/ballInfo', ballInfo, self.ballInfo_callback)
-        self.ballTravel_get = rospy.Subscriber('/barracuda_vision/camera/front/ballTravel', ballTravel, self.ballTravel_callback)
-        self.ballStatus_get = rospy.Subscriber("/barracuda_vision/camera/front/ballStatus", Bool, self.ballStatus_callback)
+        # FIX: sebelumnya subscribe ke '/barracuda_vision/camera/front_raw'
+        # (dari front_pub.py, udah gak dipakai lagi). Sekarang langsung ke
+        # topic usb_cam (yang udah lewat front_flip_fix.py, orientasinya
+        # udah bener).
+        self.image_get = rospy.Subscriber('/front/usb_cam/image_raw', Image, self.mergeView)
+        # FIX: disesuaikan ke topic HSV mentah yang baru (_hsv), biar
+        # debug view ini nunjukin hasil HSV yang sebenernya (bukan hasil
+        # fusion final yang sekarang ada di /barracuda_vision/camera/front/ballInfo dst)
+        self.ballInfo_get = rospy.Subscriber('/barracuda_vision/camera/front/ballInfo_hsv', ballInfo, self.ballInfo_callback)
+        self.ballTravel_get = rospy.Subscriber('/barracuda_vision/camera/front/ballTravel_hsv', ballTravel, self.ballTravel_callback)
+        self.ballStatus_get = rospy.Subscriber("/barracuda_vision/camera/front/ballStatus_hsv", Bool, self.ballStatus_callback)
         self.image_pub = rospy.Publisher('/barracuda_vision/camera/front/merge', Image, queue_size=10)
 
     def ballInfo_callback(self, data):

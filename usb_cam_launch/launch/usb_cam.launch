@@ -7,6 +7,27 @@
       <param name="pixel_format" value="yuyv" />
       <param name="io_method" value="mmap" />
       <param name="camera_frame_id" value="usb_cam" />
+      <!-- FIX: param "flip" bawaan driver ini gak konsisten/gak ngefek
+           (udah dicoba value=2, hasilnya masih kebalik atas-bawah). Param
+           ini DIHAPUS, dan orientasi difix eksplisit pakai cv2.flip di
+           node front_flip_fix.py (lebih pasti & gampang di-tuning). -->
+      <!-- Output topic di-remap ke "image_raw_orig" (bukan "image_raw"
+           default). Node front_flip_fix.py yang nerima ini, flip, lalu
+           publish balik ke "image_raw" (nama asli), jadi TrackerNode,
+           hsvFront.py, dan front_merge.py TIDAK perlu diubah topic-nya
+           sama sekali (mereka tetep subscribe "image_raw" seperti biasa,
+           cuma sekarang isinya sudah versi yang udah difix). -->
+      <remap from="image_raw" to="image_raw_orig" />
+    </node>
+
+    <!-- FIX: node yang benerin orientasi front cam yang kebalik atas-bawah -->
+    <node name="front_flip_fix" pkg="barracuda_vision" type="front_flip_fix.py" output="screen">
+      <!-- flip_code ikutin konvensi cv2.flip: 0 = vertikal (atas-bawah),
+           1 = horizontal (kiri-kanan), -1 = dua-duanya (rotasi 180).
+           Default 0 buat kasus "kebalik atas-bawah". Kalau abis dites
+           ternyata masih salah / malah jadi kebalik kiri-kanan, ganti
+           value di bawah ini ke 1 atau -1, TANPA perlu ubah kode. -->
+      <param name="flip_code" value="0" />
     </node>
   </group>
 

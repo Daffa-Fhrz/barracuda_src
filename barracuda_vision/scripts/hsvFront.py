@@ -54,10 +54,20 @@ class hsvball_front:
     def __init__(self):
         rospy.init_node('hsvFront_ball', anonymous=False)
         self.bridge = CvBridge()
-        self.image_get = rospy.Subscriber('/barracuda_vision/camera/front_raw', Image, self.hsv_callback)
-        self.ballInfo_pub = rospy.Publisher('/barracuda_vision/camera/front/ballInfo', ballInfo, queue_size=10)
-        self.ballTravel_pub = rospy.Publisher('/barracuda_vision/camera/front/ballTravel', ballTravel, queue_size=10)
-        self.ballStatus_pub = rospy.Publisher("/barracuda_vision/camera/front/ballStatus", Bool, queue_size=1)
+        # FIX: sebelumnya subscribe ke '/barracuda_vision/camera/front_raw'
+        # (dari front_pub.py). Sekarang front_pub.py udah gak dipakai lagi
+        # (diganti usb_cam driver di usb_cam.launch, biar gak rebutan
+        # device kamera). Topic ini juga udah lewat front_flip_fix.py,
+        # jadi orientasinya udah bener (gak kebalik atas-bawah lagi).
+        self.image_get = rospy.Subscriber('/front/usb_cam/image_raw', Image, self.hsv_callback)
+        # FIX: dikasih suffix "_hsv" biar ini jadi topic MENTAH (bukan
+        # final). ballStatus sebelumnya malah SAMA PERSIS sama topic yg
+        # dipakai process_front.py (YOLO) -- kalau dua-duanya jalan bareng,
+        # itu tabrakan publisher. Sekarang node vision_fusion.py yang
+        # gabungin hasil sini sama hasil YOLO, baru publish ke topic final.
+        self.ballInfo_pub = rospy.Publisher('/barracuda_vision/camera/front/ballInfo_hsv', ballInfo, queue_size=10)
+        self.ballTravel_pub = rospy.Publisher('/barracuda_vision/camera/front/ballTravel_hsv', ballTravel, queue_size=10)
+        self.ballStatus_pub = rospy.Publisher("/barracuda_vision/camera/front/ballStatus_hsv", Bool, queue_size=1)
         self.hsvFront_pub = rospy.Publisher('/barracuda_vision/camera/front_hsv_mask', Image, queue_size=10)
         self.hsvMergeFront_pub = rospy.Publisher('/barracuda_vision/camera/front_hsv_merge', Image, queue_size=10)
 

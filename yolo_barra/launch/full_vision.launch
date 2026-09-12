@@ -1,0 +1,44 @@
+<launch>
+    <!-- ============================================================== -->
+    <!-- KAMERA (usb_cam driver)                                        -->
+    <!-- SATU-SATUNYA sumber gambar mentah buat front & omni. front_pub.py -->
+    <!-- dan omni_pub.py (OpenCV manual, dua-duanya kebuka di index 0)  -->
+    <!-- udah dihapus dari front_cam.launch/omni_cam.launch, dan include -->
+    <!-- usb_cam_launch yang lama udah dihapus dari yolo_barra/yolo_rt.launch, -->
+    <!-- biar gak ada lagi yang rebutan device kamera.                  -->
+    <!-- Node front_flip_fix di dalam sini yang benerin front kebalik   -->
+    <!-- atas-bawah.                                                    -->
+    <!-- ============================================================== -->
+    <include file="$(find usb_cam_launch)/launch/usb_cam.launch" />
+
+    <!-- ============================================================== -->
+    <!-- HSV (color-mask) PIPELINE                                       -->
+    <!-- Sekarang baca gambar mentah dari topic usb_cam di atas, bukan  -->
+    <!-- dari front_pub.py/omni_pub.py lagi. Publish ke topic mentah    -->
+    <!-- "*_hsv".                                                        -->
+    <!-- ============================================================== -->
+    <include file="$(find barracuda_vision)/launch/cam_launch.launch" />
+
+    <!-- ============================================================== -->
+    <!-- YOLO (TensorRT dual-cam) PIPELINE                               -->
+    <!-- TrackerNode baca gambar mentah dari topic usb_cam di atas juga -->
+    <!-- (default input_topics-nya emang "front/usb_cam/image_raw" dan  -->
+    <!-- "omni/usb_cam/image_raw", jadi otomatis nyambung). Publish ke  -->
+    <!-- topic mentah "*_yolo".                                         -->
+    <!-- ============================================================== -->
+    <include file="$(find yolo_launch)/launch/yolo_rt.launch" />
+
+    <!-- ============================================================== -->
+    <!-- FUSION                                                          -->
+    <!-- Gabungin hasil "*_hsv" + "*_yolo" di atas, publish ke topic FINAL -->
+    <!-- yang didengerin node kinematic (IK_kinematic.py):               -->
+    <!--   /Barracuda_Yolo/front/ballInfo, ballTravel                    -->
+    <!--   /Barracuda_Yolo/omni/ballInfo, ballTravel                     -->
+    <!--   /barracuda_vision/camera/front/ballStatus                     -->
+    <!--   /barracuda_vision/camera/omni/ballStatus                      -->
+    <!-- HARUS jalan bareng include-include di atas, karena dia subscribe -->
+    <!-- ke topic "*_hsv" dan "*_yolo" yang dipublish sama node-node     -->
+    <!-- dari include-include tadi.                                      -->
+    <!-- ============================================================== -->
+    <node name="vision_fusion" pkg="yolo_barra" type="vision_fusion.py" output="screen" />
+</launch>

@@ -62,10 +62,19 @@ class hsvball_omni:
         rospy.init_node('hsvOmni_ball', anonymous=False)
         
         self.bridge = CvBridge()
-        self.image_get = rospy.Subscriber('/barracuda_vision/camera/omni_raw', Image, self.hsv_callback)
-        self.ballInfo_pub = rospy.Publisher('/barracuda_vision/camera/omni/ballInfo', ballInfo, queue_size=10)
-        self.ballTravel_pub = rospy.Publisher('/barracuda_vision/camera/omni/ballTravel', ballTravel, queue_size=10)
-        self.ballStatus_pub = rospy.Publisher("/barracuda_vision/camera/omni/ballStatus", Bool, queue_size=1)
+        # FIX: sebelumnya subscribe ke '/barracuda_vision/camera/omni_raw'
+        # (dari omni_pub.py). Sekarang omni_pub.py udah gak dipakai lagi
+        # (diganti usb_cam driver di usb_cam.launch, biar gak rebutan
+        # device kamera).
+        self.image_get = rospy.Subscriber('/omni/usb_cam/image_raw', Image, self.hsv_callback)
+        # FIX: dikasih suffix "_hsv" biar ini jadi topic MENTAH (bukan
+        # final). ballStatus sebelumnya malah SAMA PERSIS sama topic yg
+        # dipakai process_omni.py (YOLO) -- kalau dua-duanya jalan bareng,
+        # itu tabrakan publisher. Sekarang node vision_fusion.py yang
+        # gabungin hasil sini sama hasil YOLO, baru publish ke topic final.
+        self.ballInfo_pub = rospy.Publisher('/barracuda_vision/camera/omni/ballInfo_hsv', ballInfo, queue_size=10)
+        self.ballTravel_pub = rospy.Publisher('/barracuda_vision/camera/omni/ballTravel_hsv', ballTravel, queue_size=10)
+        self.ballStatus_pub = rospy.Publisher("/barracuda_vision/camera/omni/ballStatus_hsv", Bool, queue_size=1)
         self.hsvOmni_pub = rospy.Publisher('/barracuda_vision/camera/omni_hsv_mask', Image, queue_size=10)
         self.hsvMergeOmni_pub = rospy.Publisher('/barracuda_vision/camera/omni_hsv_merge', Image, queue_size=10)
 

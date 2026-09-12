@@ -101,10 +101,16 @@ class mergeOmni:
     def __init__(self):
         rospy.init_node('omnicam_view', anonymous=False)
         self.bridge = CvBridge()
-        self.image_get = rospy.Subscriber('/barracuda_vision/camera/omni_raw', Image, self.mergeView)
-        self.ballInfo_get = rospy.Subscriber('/barracuda_vision/camera/omni/ballInfo', ballInfo, self.ballInfo_callback)
-        self.ballTravel_get = rospy.Subscriber('/barracuda_vision/camera/omni/ballTravel', ballTravel, self.ballTravel_callback)
-        self.ballStatus_get = rospy.Subscriber("/barracuda_vision/camera/omni/ballStatus", Bool, self.ballStatus_callback)
+        # FIX: sebelumnya subscribe ke '/barracuda_vision/camera/omni_raw'
+        # (dari omni_pub.py, udah gak dipakai lagi). Sekarang langsung ke
+        # topic usb_cam.
+        self.image_get = rospy.Subscriber('/omni/usb_cam/image_raw', Image, self.mergeView)
+        # FIX: disesuaikan ke topic HSV mentah yang baru (_hsv), biar
+        # debug view ini nunjukin hasil HSV yang sebenernya (bukan hasil
+        # fusion final yang sekarang ada di /barracuda_vision/camera/omni/ballInfo dst)
+        self.ballInfo_get = rospy.Subscriber('/barracuda_vision/camera/omni/ballInfo_hsv', ballInfo, self.ballInfo_callback)
+        self.ballTravel_get = rospy.Subscriber('/barracuda_vision/camera/omni/ballTravel_hsv', ballTravel, self.ballTravel_callback)
+        self.ballStatus_get = rospy.Subscriber("/barracuda_vision/camera/omni/ballStatus_hsv", Bool, self.ballStatus_callback)
         self.image_pub = rospy.Publisher('/barracuda_vision/camera/omni/merge', Image, queue_size=10)
 
     def ballInfo_callback(self, data):
