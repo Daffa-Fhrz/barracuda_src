@@ -16,7 +16,7 @@ from yolo_barra.msg import (
     dummyInfo,
     dummyInfoArray
 )
-from std_msgs.msg import Bool, Int16, Int8, Int32, Float32
+from std_msgs.msg import Bool, Int16, Int8, Int32, Float32, Byte
 from geometry_msgs.msg import Pose2D
 # from barracuda_kinematic.PID_controller import PIDController # type: ignore
 from enum import Enum   
@@ -142,12 +142,12 @@ speedPenggiring = penggiring()
 
 #PUBLISHER SETUP    
 wheellSpeed_pub = rospy.Publisher('/barra_kinematic/wheel/speed', speedRobot, queue_size=10)   
-penggiring_pub = rospy.Publisher('/barra_kinematic/penggiring/speed', penggiring, queue_size=3)
+# penggiring_pub = rospy.Publisher('/barra_kinematic/penggiring/speed', penggiring, queue_size=3)
 
 # TODO: topic shooting mode masih placeholder, GANTI kalau nama topic final
 # sudah disepakati sama tim firmware/arduino (sesuaikan namespace-nya juga).
-SHOOT_MODE_TOPIC = '/barra_kinematic/shoot/mode'
-shootMode_pub = rospy.Publisher(SHOOT_MODE_TOPIC, Int8, queue_size=10)
+SHOOT_MODE_TOPIC = '/arduino/shoot/mode'
+shootMode_pub = rospy.Publisher(SHOOT_MODE_TOPIC, Byte, queue_size=10)
 
 class PIDController:
     def __init__(self, Kp, Ki, Kd, MaxValue, MinValue, T=0.02, MaxValue_Integer=2, MinValue_integer=-2,
@@ -258,7 +258,7 @@ class IKMove:
         #   ---FRONT CAMERA---
         # FIX: is_angle=True juga, sama alasannya kayak PID_angle_omni.
         self.PID_angle_front = PIDController(
-            Kp=0.095, Ki=0.000000000042, Kd=0.0057,
+            Kp=0.065, Ki=0.000000000043, Kd=0.0057,
             MaxValue=self.theta_max, MinValue=-1 * self.theta_max,
             limit_EN=True, is_angle=True
         )
@@ -279,7 +279,7 @@ class IKMove:
         # (lihat blok MEKANISME SHOOTING di dribleState), harus ambil jalur
         # putar terpendek juga.
         self.PID_BNO = PIDController(
-            Kp=1.5, Ki=0.0, Kd=0.012,
+            Kp=0.75, Ki=0.000000009, Kd=0.175,
             MaxValue=self.theta_max, MinValue=-1 * self.theta_max,
             limit_EN=True, is_angle=True
         )
@@ -502,11 +502,11 @@ def encoderCounter2_cb(data):
 #---FUNCTION ROBOT STATE---
 iK_move = IKMove()  
 
-def penggiringSpeed(w1, w2):    
-    global speedPenggiring
-    speedPenggiring.Drible1 = w1
-    speedPenggiring.Drible2 = w2
-    penggiring_pub.publish(speedPenggiring)
+# def penggiringSpeed(w1, w2):    
+#     global speedPenggiring
+#     speedPenggiring.Drible1 = w1
+#     speedPenggiring.Drible2 = w2
+#     penggiring_pub.publish(speedPenggiring)
 
 def sendShootMode(mode):
     """Publish mode tendangan (0=normal/ga nendang, 1=passing, 2=shooting)
@@ -514,7 +514,7 @@ def sendShootMode(mode):
     tau kondisi terkini (bukan cuma sekali pas mau nendang)."""
     global currentShootMode
     currentShootMode = mode
-    shootMode_pub.publish(Int8(data=mode))
+    shootMode_pub.publish(Byte(data=mode))
 
 def stopState():
     global speed, is_capturing_ball, front_angle_pid_active, omni_angle_pid_active
@@ -523,7 +523,6 @@ def stopState():
     speed.w3 = 0
     speed.w4 = 0
     wheellSpeed_pub.publish(speed)
-    penggiringSpeed(0, 0)
     sendShootMode(shootMode.NORMAL.value)  # safety: pastikan ga ada mode nendang yang nyangkut
     is_capturing_ball = False  # safety: reset kunci capture kalau dipaksa STOP di tengah proses
     # FIX: reset juga flag PID angle, biar begitu balik lagi ke GOTO_BALL
@@ -567,7 +566,7 @@ def goToBallState_yTheta():
             front_angle_pid_active = True
         omni_angle_pid_active = False  # omni lagi nganggur selama front aktif
 
-        angle = iK_move.PID_angle_front.PID_Calc(90, angle_now)
+        angle = iK_move.PID_angle_front.PID_Calc(110, angle_now)
 
         # Sekali kepicu (jarak <= threshold), KUNCI ke mode push -- jangan
         # dicek balik ke distance_now tiap loop, soalnya kalau udah deket,
@@ -626,7 +625,7 @@ def goToBallState_yTheta():
 
         # Nyalain dribbler dari sekarang biar bola ketarik pas robot mepet,
         # begitu proxy kedeteksi baru pindah state ke DRIBLE_BALL.
-        penggiringSpeed(50, 50)
+        # penggiringSpeed(50, 50)
         if proximityState.ballCatch1 or proximityState.ballCatch2:
             command = robotState.DRIBLE_BALL.value
             is_capturing_ball = False  # reset, siap buat siklus GOTO_BALL berikutnya
@@ -672,80 +671,66 @@ def goToBallState_yTheta():
 
 # ---- Konstanta buat state DRIBLE_BALL, sesuaikan pas tuning ----
 DRIBBLER_SPEED = 150            # kecepatan motor dribbler pas narik/nahan bola
-HEADING_ALIGN_TOLERANCE = 3.0   # derajat, toleransi sebelum dianggap "udah lurus ke target"
+HEADING_ALIGN_TOLERANCE = 7.0   # derajat, toleransi sebelum dianggap "udah lurus ke target"
 
 # kecepatan gerak sementara pas bola udah captured, cuma buat testing dribble
 # dulu (belom ada logic shooting). Sesuaikan/ganti sesuka hati buat testing.
+DRIBBLE_HOLD_DURATION = 2.0
+dribble_start_time = None 
 DRIBBLE_TEST_VY = 100
 DRIBBLE_TEST_VTHETA = 0
+shoot_already_sent = False
+target_angle = 180
 
 def dribleState():
-    """State DRIBLE_BALL:
-    1) Kalau proxy belum aktif sama sekali -> tetap nyalain dribbler & nunggu
-       (kalau bola ilang dari kamera depan, balik ke GOTO_BALL).
-    2) Kalau proxy udah aktif (bola kepegang) -> untuk SEKARANG robot cuma
-       gerak-gerak testing aja (belum align ke goal, belum nendang).
-
-    Mekanisme shooting (align heading ke targetPose.theta lalu kirim
-    shootMode SHOOTING) sudah ditulis di bawah tapi DI-COMMENT dulu.
-    Begitu siap, tinggal:
-      1. Hapus/comment blok "GERAK TESTING" di bawah.
-      2. Uncomment blok "MEKANISME SHOOTING".
-    """
-    global command
+    global command, shoot_already_sent, target_angle, dribble_start_time
 
     ballCaught = proximityState.ballCatch1 and proximityState.ballCatch2
-    penggiringSpeed(DRIBBLER_SPEED, DRIBBLER_SPEED)
-    sendShootMode(shootMode.NORMAL.value) 
-    speed.w1 = 0
-    speed.w2 = 0    
-    speed.w3 = 0
-    speed.w4 = 0
-    wheellSpeed_pub.publish(speed)
+    # penggiringSpeed(DRIBBLER_SPEED, DRIBBLER_SPEED)
+
     if not ballCaught:
         sendShootMode(shootMode.NORMAL.value)
-        penggiringSpeed(0, 0)
+        # penggiringSpeed(0, 0)
         command = robotState.GOTO_BALL.value
-    return
+        shoot_already_sent = False
+        dribble_start_time = None
+        return
 
-    # ============================================================
-    # GERAK TESTING (aktif) -- robot cuma jalan sesuai nilai di atas,
-    # belum ada logic align ke gawang. Hapus blok ini kalau mekanisme
-    # shooting di bawah udah diaktifkan.
-    # ============================================================
-    w1, w2, w3, w4 = iK_move.perumusan(0, DRIBBLE_TEST_VY, DRIBBLE_TEST_VTHETA, 90)
-    # dinegasi biar konsisten sama mainRunV2 (lihat catatan di goToBallState_yTheta)
-    speed.w1 = -w1
-    speed.w2 = -w2
-    speed.w3 = -w3
-    speed.w4 = -w4
-    wheellSpeed_pub.publish(speed)
+    if dribble_start_time is None:
+        dribble_start_time = rospy.get_time()
+    
+    elapsed = rospy.get_time() - dribble_start_time
 
-    # ============================================================
-    # MEKANISME SHOOTING (belum diaktifkan) -- uncomment kalau sudah siap,
-    # dan hapus/comment blok "GERAK TESTING" di atas.
-    #
-    # heading_error = targetPose.theta - headingBNO
-    # heading_error = (heading_error + 180) % 360 - 180  # normalisasi -180..180
-    #
-    # if abs(heading_error) < HEADING_ALIGN_TOLERANCE:
-    #     # sudah lurus ke arah target -> berhenti gerak translasi, siap tendang
-    #     speed.w1 = 0
-    #     speed.w2 = 0
-    #     speed.w3 = 0
-    #     speed.w4 = 0
-    #     wheellSpeed_pub.publish(speed)
-    #     sendShootMode(shootMode.SHOOTING.value)
-    # else:
-    #     vtheta = iK_move.PID_BNO.PID_Calc(targetPose.theta, headingBNO)
-    #     w1, w2, w3, w4 = iK_move.perumusan(0, 0, vtheta, 130)
-    #     speed.w1 = -w1
-    #     speed.w2 = -w2
-    #     speed.w3 = -w3
-    #     speed.w4 = -w4
-    #     wheellSpeed_pub.publish(speed)
-    #     sendShootMode(shootMode.NORMAL.value)
-    # ============================================================
+    # Hitung sudut ke gawang berdasarkan posisi robot SAAT INI
+
+    heading_error = target_angle - headingBNO
+    heading_error = (heading_error + 180) % 360 - 180
+
+    if abs(heading_error) < HEADING_ALIGN_TOLERANCE:
+        speed.w1 = 0
+        speed.w2 = 0
+        speed.w3 = 0
+        speed.w4 = 0
+        wheellSpeed_pub.publish(speed)
+        if elapsed >= DRIBBLE_HOLD_DURATION:
+            if not shoot_already_sent:
+                sendShootMode(shootMode.SHOOTING.value)
+                shoot_already_sent = True
+            else:
+                sendShootMode(shootMode.NORMAL.value)
+        else:
+            # sudah align tapi belum 1 detik -- tahan dulu, jangan tembak
+            sendShootMode(shootMode.NORMAL.value)
+    else:
+        vtheta = iK_move.PID_BNO.PID_Calc(target_angle, headingBNO)
+        w1, w2, w3, w4 = iK_move.perumusan(0, 0, vtheta, 90)
+        speed.w1 = slew_limit_wheel(speed.w1, -w1)
+        speed.w2 = slew_limit_wheel(speed.w2, -w2)
+        speed.w3 = slew_limit_wheel(speed.w3, -w3)
+        speed.w4 = slew_limit_wheel(speed.w4, -w4)
+        wheellSpeed_pub.publish(speed)
+        sendShootMode(shootMode.NORMAL.value)
+        shoot_already_sent = False
 
 
 def waitBallState():
@@ -867,7 +852,7 @@ if __name__ == '__main__':
     ballStatus_front_get = rospy.Subscriber("/barracuda_vision/camera/front/ballStatus", Bool, ballStatus_cb_front)
     # ---ARDUINO---
     headingBMM_get = rospy.Subscriber("/arduino/BMM/heading", Int16, bmm_heading)
-    headingBNO_get = rospy.Subscriber("/arduino/thetea/heading", Float32, bno_heading)
+    headingBNO_get = rospy.Subscriber("/arduino/theta/heading", Float32, bno_heading)
     proximity_get = rospy.Subscriber("/arduino/ball/catch", ballCatch, proximity_cb)   
     # ---STRATEGY---
     strategy_get = rospy.Subscriber("/barracuda_strategy/strategy/targetPose", Pose2D, strategy_cb)
