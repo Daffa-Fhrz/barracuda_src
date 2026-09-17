@@ -1,0 +1,581 @@
+#!/usr/bin/env python2
+import rospy
+from time import sleep
+from math import atan2, degrees, sqrt
+from geometry_msgs.msg import Pose2D, Point
+from std_msgs.msg import Int8, Float64, Bool, Empty
+from enum import Enum
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+class Enable(Enum):
+	Stop = 0
+	OnPlay = 1
+	StartPosition = 2
+	DropBall = 3
+	KickOffHome = 4
+	KickOffAway = 5
+	GoalKickHome = 6
+	GoalKickAway = 7
+	FreeKickHome = 8
+	FreeKickAway = 9
+	CornerHome = 10
+	CornerAway = 11
+	PenaltyHome = 12
+	PenaltyAway = 13
+	ThrowInHome = 14
+	ThrowInAway = 15
+	Empty = 16
+	# Additional
+	ResetOdometry = 17
+	KickBall = 18
+
+class Pose():
+	Initial = [-250, -150, 0]
+	DropBall = [0, 0, 0]
+	KickOffHome = [0, 0, 0]
+	KickOff = [0, 0, 0]
+	KickOffAway = [0, 0, 0]
+	GoalKickHome = [0, 0, 0]
+	GoalKickAway = [0, 0, 0]
+	CornerHome = [-250, 100, 100]
+	CornerAway = [0, 0, 0]
+	PenaltyHome = [0, 0, 0]
+	PenaltyAway = [0, 0, 0]
+
+class RobotState(Enum):
+	Stop = 0
+	SetAbsPose = 1
+	SetTheta = 2
+	GotoBall = 3
+	ShootBall = 4
+	WaitBall = 5
+	FaceBall = 6
+
+class Role(Enum):
+	Attacker = 0
+	Defender = 1
+
+role = Role.Attacker
+goal = [0, 600]
+defense_goal = [0, -600]
+
+class GameState(Enum):
+	Attacking_Attacker = 0
+	Attacking_Defender = 1
+	Defending_Defender = 2
+	Defending_Attacker = 3
+
+gameState = GameState.Defending_Defender
+
+SAFE_RADIUS = 300       # 3 m
+DEFENSE_AREA = -100
+BLOCK_DIST = 100        # 1 m blocking
+INTERCEPT_DIST = 120
+
+LEFT_GOAL  = [-80, 600]
+RIGHT_GOAL = [80, 600]
+
+teammatePose = Pose2D
+attackerPose = Pose2D
+defenderPose = Pose2D
+X = 0
+Y = 0
+
+teammateBallReached = False
+attackerReady = False
+
+stats = RobotState.Stop
+lastStats = RobotState.Stop
+currentPose = Pose2D()
+ballReached = False
+frontBallDetected = False
+frontCurrent = Point() 
+
+arahPenalty = 0
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+# action executor node
+command_pub = rospy.Publisher('/action_executor/command', Int8, queue_size=10)
+pose_pub = rospy.Publisher('/action_executor/pose_data', Pose2D, queue_size=10)
+float_pub = rospy.Publisher('/action_executor/float_data', Float64, queue_size=10)
+# serial node
+initial_pose_pub = rospy.Publisher('/robot/initial_pose', Pose2D, queue_size=10)
+reset_pub = rospy.Publisher('/robot/reset', Empty, queue_size=10)
+# goal koordinat
+goal_pub = rospy.Publisher('/path_planning/obstacles', Pose2D, queue_size = 10)
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+def enHandler(data):
+	global enable
+	enable = Enable(data.data)
+	rospy.loginfo("Local Strategy : " + str(enable))
+
+def actionStatHandler(data):
+	global stats
+	stats = RobotState(data.data)
+
+def currentPoseHandler(data):
+	global currentPose
+	currentPose = data
+
+def ballReachedHandler(data):
+	global ballReached
+	ballReached = data.data
+
+def getKey(elem):
+	return elem.z
+
+def frontBallDetectedHandler(data):
+	global frontBallDetected
+	frontBallDetected = data.data
+
+def frontBallHandler(data):
+	global frontCurrent, frontBallDetected, X, Y
+	frontCurrent = data
+
+	if frontBallDetected:
+		X = frontCurrent.x
+		Y = frontCurrent.y
+
+def resetHandler(data):
+	global enable
+	initial_pose = Pose2D()
+	initial_pose.x = Pose.Initial[0]
+	initial_pose.y = Pose.Initial[1]
+	initial_pose.theta = Pose.Initial[2]
+
+	prevEnable = enable
+	enable = Enable.Stop
+	sleep(0.5)
+	initial_pose_pub.publish(initial_pose)
+	enable = prevEnable
+	sleep(0.1)
+	rospy.loginfo("Local Strategy : Reset")
+
+def attackerPoseHandler(data):
+	global attackerPose
+	attackerPose = data
+
+def teammateHandler(data):
+	global teammatePose
+	teammatePose = data
+
+def teammateBallReachedHandler(data):
+    global teammateBallReached
+    teammateBallReached = data.data
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+def reset():
+	rospy.loginfo("Reset")
+	initial_pose = Pose2D()
+	initial_pose.x = Pose.Initial[0]
+	initial_pose.y = Pose.Initial[1]
+	initial_pose.theta = Pose.Initial[2]
+
+	while initial_pose != currentPose:
+		initial_pose_pub.publish(initial_pose)
+		sleep(0.1)
+		reset_pub.publish()
+		sleep(0.1)
+	rospy.loginfo("Reset Done")
+
+def publishPose(position, theta):
+	pose = Pose2D()
+	pose.x = position[0]
+	pose.y = position[1]
+	pose.theta = theta
+	pose_pub.publish(pose)
+	sleep(0.1)
+
+def publishFloat(data):
+	float_pub.publish(data)
+	sleep(0.1)
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+def waitUntilDone():
+	global stats, enable
+	while stats != RobotState.Stop and enable != Enable.Stop:
+		if rospy.is_shutdown():
+			break
+		rospy.Rate(20).sleep()
+	sleep(0.1)
+
+def waitUntilBallReached():
+	global ballReached
+	while not ballReached and enable != Enable.Stop:
+		if rospy.is_shutdown():
+			break
+		rospy.Rate(20).sleep()
+	sleep(0.1)
+
+def waitUntilBallMoved():
+	global X, Y
+	initX = X
+	initY = Y
+	timer = 0
+	while sqrt((X-initX)**2 + (Y-initY)**2) < 0.1 != Enable.Stop:
+		if rospy.is_shutdown():
+			break
+		if timer >= 140:
+			break
+		timer += 1
+		rospy.Rate(20).sleep()
+	sleep(0.1)
+
+def getAngle(robotPose, pointTarget):
+	return float(degrees(atan2((pointTarget[0]-robotPose.x), (pointTarget[1]-robotPose.y))))
+
+def distance(p1, p2):
+	return sqrt((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2)
+
+def getBallPosition():
+	return [X,Y]
+
+# def inOverlap(ball):
+# 	return -OVERLAP <= ball[1] <= OVERLAP
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+def updateRole():
+	global role
+	isInSafeArea = currentPose.y < DEFENSE_AREA
+
+	#robot dapat bola
+	if ballReached:
+		if isInSafeArea:
+			role = Role.Defender
+		else:
+			role = Role.Attacker
+		return
+
+	#teman dapat bola
+	if teammateBallReached:
+		teammateInSafeArea = teammatePose.y < DEFENSE_AREA
+		if teammateInSafeArea:
+			role = Role.Attacker
+		else:
+			role = Role.Defender
+		return
+
+	#bola bebas
+	ball = getBallPosition()
+	my_dist = distance([currentPose.x, currentPose.y], ball)
+	mate_dist = distance([teammatePose.x, teammatePose.y], ball)
+
+	if my_dist < mate_dist:
+		role = Role.Attacker
+	else:
+		role = Role.Defender
+
+def updateGameState():
+	global gameState
+
+	if ballReached:
+		if role == Role.Attacker:
+			gameState = GameState.Attacking_Attacker
+		else:
+			gameState = GameState.Attacking_Defender
+	else:
+		if role == Role.Defender:
+			gameState = GameState.Defending_Defender
+		else:
+			gameState = GameState.Defending_Attacker
+
+def gotoPose(pose):
+	global stats
+	stats = RobotState.SetAbsPose
+	publishPose(pose[:2], pose[2])
+	command_pub.publish(RobotState.SetAbsPose.value)        # SetAbsPose
+	waitUntilDone()
+
+def gotoPosition(position):
+	global stats
+	stats = RobotState.SetAbsPose
+	publishPose(position, currentPose.theta)
+	command_pub.publish(RobotState.SetAbsPose.value)        # SetAbsPose
+	waitUntilDone()
+
+def setTheta(theta):
+	global stats
+	stats = RobotState.SetTheta
+	publishFloat(theta)
+	command_pub.publish(RobotState.SetTheta.value)
+	waitUntilDone()
+
+def setTheta2Point(point):
+	global stats
+	stats = RobotState.SetTheta
+	publishFloat(getAngle(currentPose, point))
+	command_pub.publish(RobotState.SetTheta.value)
+	waitUntilDone()
+
+def gotoBall():
+	global stats
+	stats = RobotState.GotoBall
+	command_pub.publish(RobotState.GotoBall.value)
+	waitUntilDone()
+
+def WaitBall():
+	global stats
+	stats = RobotState.WaitBall
+	command_pub.publish(RobotState.WaitBall.value)
+	waitUntilDone()
+
+def FaceBall():
+	global stats
+	stats = RobotState.FaceBall
+	command_pub.publish(RobotState.FaceBall.value)
+	waitUntilDone()
+
+def ShootBall():
+	if enable != Enable.Stop:
+		global stats
+		stats = RobotState.ShootBall
+		command_pub.publish(RobotState.ShootBall.value)
+		waitUntilDone()
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+# def AttackPosition():
+# 	gotoPosition([teammatePose.x,100])
+
+def AdvanceAttack():
+	gotoBall()
+	waitUntilBallReached()
+
+	# target gawang
+	left_angle  = abs(getAngle(currentPose, LEFT_GOAL))
+	right_angle = abs(getAngle(currentPose, RIGHT_GOAL))
+
+	if left_angle < right_angle:
+		shoot_target = LEFT_GOAL
+	else:
+		shoot_target = RIGHT_GOAL
+
+	setTheta2Point(shoot_target)
+	ShootBall()
+
+def AdvanceDefense():
+	ball = getBallPosition()
+
+	dx = defense_goal[0] - ball[0]
+	dy = defense_goal[1] - ball[1]
+
+	norm = sqrt(dx*dx + dy*dy)
+	if norm == 0:
+		return
+
+	# kick line blocking
+	block_x = ball[0] + (dx/norm) * BLOCK_DIST
+	block_y = ball[1] + (dy/norm) * BLOCK_DIST
+
+	gotoPosition([block_x, block_y])
+
+	# membayangi
+	if distance(ball, defense_goal) > SAFE_RADIUS:
+		retreat_x = block_x + (dx/norm)*40
+		retreat_y = block_y + (dy/norm)*40
+		gotoPosition([retreat_x, retreat_y])
+	else:
+		gotoBall()
+
+	# pressing
+	if distance([currentPose.x, currentPose.y], ball) < INTERCEPT_DIST:
+		gotoBall()
+
+def defenderPass():
+	angle = getAngle(currentPose, [teammatePose.x, teammatePose.y])
+	setTheta(angle)
+
+	isAttackerReady = teammatePose.y > 100
+	if isAttackerReady:
+		ShootBall() #pass
+	else:
+		WaitBall()
+
+def attackerPosition():
+    target_y = 200 #150 
+
+    if teammatePose.x > 0:
+        #teman ada di kanan, lari ke kiri
+        target_x = -100
+    else:
+        target_x = 100
+        
+    gotoPosition([target_x, target_y])
+    
+    # hadap ke teman
+    angle = getAngle(currentPose, [teammatePose.x, teammatePose.y])
+    setTheta(angle)
+
+    WaitBall()
+
+def state_Attacking_Attacker():
+	AdvanceAttack()
+
+def state_Attacking_Defender():
+	defenderPass()
+
+def state_Defending_Defender():
+	AdvanceDefense()
+
+def state_Defending_Attacker():
+	attackerPosition()
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+def Play():
+	while enable == Enable.OnPlay:
+
+		updateRole()
+		updateGameState()
+
+		if gameState == GameState.Attacking_Attacker:
+			state_Attacking_Attacker()
+
+		elif gameState == GameState.Attacking_Defender:
+			state_Attacking_Defender()
+
+		elif gameState == GameState.Defending_Defender:
+			state_Defending_Defender()
+
+		elif gameState == GameState.Defending_Attacker:
+			state_Defending_Attacker()
+
+if __name__ == '__main__':
+	rospy.init_node('regional')
+
+	enable = rospy.get_param("~local_en", False)
+
+	# self
+	rospy.Subscriber('/local_strategy/enable', Int8, enHandler)
+	# action executor node
+	rospy.Subscriber('/action_executor/action_stats', Int8, actionStatHandler)
+	# serial node
+	rospy.Subscriber('/robot/pose', Pose2D, currentPoseHandler)
+	rospy.Subscriber('/robot/ball_reached', Bool, ballReachedHandler)
+	rospy.Subscriber('/robot/reset', Empty, resetHandler)
+	# computer vision node
+	rospy.Subscriber('/com_vision/front_cam/detected', Bool, frontBallDetectedHandler)
+	rospy.Subscriber('/com_vision/front_cam/circle_set', Point, frontBallHandler)
+	# rospy.Subscriber('/local_strategy/dummy1', Int8, dummy1Handler)
+	# rospy.Subscriber('/local_strategy/dummy2', Int8, dummy2Handler)
+	# teammate node
+	rospy.Subscriber('/teammate/pose', Pose2D, teammateHandler)
+	rospy.Subscriber('/teammate/ball_reached', Bool, teammateBallReachedHandler)
+
+	command_pub.publish(RobotState.Stop.value)
+	sleep(5)
+	reset()
+
+	while not rospy.is_shutdown():
+		if enable == Enable.Stop:
+			command_pub.publish(RobotState.Stop.value)
+			rospy.loginfo("Stop") 
+			enable = Enable.Empty
+		
+		elif enable == Enable.OnPlay:
+			Play()
+		
+		elif enable == Enable.StartPosition:
+			gotoPose(Pose.KickOffHome)
+			enable = Enable.Empty
+
+		elif enable == Enable.DropBall:
+			# gotoPose([currentPose.x, currentPose.y-150, currentPose.theta])
+			gotoPose(Pose.DropBall)
+			while enable == Enable.DropBall:
+				pass
+			Play()
+
+		elif enable == Enable.KickOffHome:
+			gotoPose(Pose.KickOff)
+			# gotoPose(Pose.KickOffHome)
+			while enable == Enable.KickOffHome:
+				pass
+			# if enable == Enable.OnPlay:
+			#     sleep(2)
+			#     gotoPose([0, -400, 0])
+			Play()
+
+		elif enable == Enable.KickOffAway:
+			gotoPose(Pose.KickOffAway)
+			FaceBall()
+			while enable == Enable.KickOffAway:
+				pass
+			if enable == Enable.OnPlay:
+				waitUntilBallMoved()
+			Play()
+
+		elif enable == Enable.GoalKickHome:
+			gotoPose(Pose.GoalKickHome)
+			while enable == Enable.GoalKickHome:
+				pass
+			Play()
+
+		elif enable == Enable.GoalKickAway:
+			gotoPose(Pose.GoalKickAway)
+			FaceBall()
+			while enable == Enable.GoalKickAway:
+				pass
+			if enable == Enable.OnPlay:
+				waitUntilBallMoved()
+			Play()
+
+		elif enable == Enable.FreeKickHome:
+			enable = Enable.GoalKickHome
+
+		elif enable == Enable.FreeKickAway:
+			enable = Enable.GoalKickAway
+
+		elif enable == Enable.CornerHome:
+			gotoPose(Pose.CornerHome)
+			# while enable == Enable.CornerHome:
+			#     pass
+			gotoBall()
+			gotoPose(Pose.PenaltyHome)
+			ShootBall()
+			gotoPose(Pose.Initial)
+			enable = Enable.Empty
+
+		elif enable == Enable.CornerAway:
+			gotoPose(Pose.CornerAway)
+			FaceBall()
+			while enable == Enable.CornerAway:
+				pass
+			if enable == Enable.OnPlay:
+				waitUntilBallMoved()
+			Play()
+
+		elif enable == Enable.PenaltyHome:
+			gotoPose(Pose.PenaltyHome)
+			# while enable == Enable.PenaltyHome:
+			#     pass
+			gotoBall()
+			if(arahPenalty % 2 == 0):
+				setTheta2Point([50, 600])
+			elif(arahPenalty % 3 == 0):
+				setTheta2Point([-50, 600])
+			else:
+				setTheta2Point([0, 600])
+			arahPenalty += 1
+			ShootBall()
+			gotoPose(Pose.Initial)
+			enable = Enable.Empty
+
+		elif enable == Enable.PenaltyAway:
+			gotoPose(Pose.PenaltyAway)
+			enable = Enable.Empty
+
+		elif enable == Enable.ThrowInHome:
+			enable = Enable.GoalKickHome
+
+		elif enable == Enable.ThrowInAway:
+			enable = Enable.GoalKickAway
+
+		rospy.Rate(20).sleep()
+
+	rospy.spin()
