@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import rospy
 import numpy as np
+import math
+from geometry_msgs.msg import Pose2D
 from barracuda_roscom.msg import speedRobot , currentPose, penggiring, ballCatch
 from yolo_barra.msg import (
     YoloResult,
@@ -82,6 +84,7 @@ targetPosey =0
 targetPosetheta = 0
 currentPosex = 0
 currentPosey = 0
+currentPosetheta = 0
 
 ball_point_omni = ballInfo()
 ball_pos_omni = ballTravel()
@@ -318,13 +321,13 @@ class IKMove:
         )
         # --- TARGET POSITION XYTHETA ---
         self.PID_target_x = PIDController(
-            Kp=0.45, Ki=0.0, Kd=0.015,
-            MaxValue=self.theta_max, MinValue=-1 * self.theta_max,
+            Kp=6, Ki=0.0001, Kd=0.46,
+            MaxValue=self.xy_max, MinValue=-1 * self.xy_max,
             limit_EN=True
         )
         self.PID_target_y = PIDController(  
-            Kp=0.45, Ki=0.0, Kd=0.015,
-            MaxValue=self.theta_max, MinValue=-1 * self.theta_max,
+            Kp=6, Ki=0.00041, Kd=0.46,
+            MaxValue=self.xy_max, MinValue=-1 * self.xy_max,
             limit_EN=True
         )
         # FIX: is_angle=True karena ini PID buat theta (heading) target.
@@ -332,6 +335,16 @@ class IKMove:
             Kp=0.45, Ki=0.0, Kd=0.015,
             MaxValue=self.theta_max, MinValue=-1 * self.theta_max,
             limit_EN=True, is_angle=True
+        )
+        self.PID_distance_x = PIDController(
+            Kp=4, Ki=0.0, Kd=0.01,
+            MaxValue=self.xy_max, MinValue=-1 * self.xy_max,
+            limit_EN=True
+        )
+        self.PID_distance_y = PIDController(
+            Kp=4, Ki=0.0, Kd=0.01,
+            MaxValue=self.xy_max, MinValue=-1 * self.xy_max,
+            limit_EN=True
         )
             
     
@@ -475,9 +488,10 @@ def strategy_cb(data):
     targetPose.y = data.y
     targetPose.theta = data.theta
 def current_pose_cb(data):
-    global currentPosex, currentPosey
+    global currentPosex, currentPosey, currentPosetheta
     currentPosex = data.x
     currentPosey = data.y
+    currentPosetheta = data.theta 
 def proximity_cb(data):
     # BUG lama: pakai "global ballCatch" (nama class message-nya, bukan
     # instance globalnya), jadi nilai proximityState nggak pernah keupdate.
@@ -826,18 +840,37 @@ def mainRunV2():
         speed.w4 = 0
         wheellSpeed_pub.publish(speed)
 
+ALIGN_TOLERANCE_RAD = math.radians(5)  # toleransi align heading sebelum boleh translasi
+
 def RunTtMC():
-    distancex = targetPosex
-    distancey = targetPosey
-    x = iK_move.PID_distance.PID_Calc(distancex, currentPosex * 70)
-    y = iK_move.PID_distance.PID_Calc(distancey, currentPosey * 70)
-    w1, w2, w3, w4 = iK_move.perumusan(x, y, 0, 35)
-    speed.w1 = w1
-    speed.w2 = w2
-    speed.w3 = w3
-    speed.w4 = w4   
+    global speed
+
+    # --- Translasi (sudah benar dari sebelumnya) ---
+    x_global = iK_move.PID_distance_x.PID_Calc(targetPosex, currentPosex)
+    y_global = iK_move.PID_distance_y.PID_Calc(targetPosey, currentPosey)
+
+    theta_rad = currentPosetheta
+    theta_deg = math.degrees(theta_rad)
+
+    x_local =  x_global * math.cos(theta_rad) + y_global * math.sin(theta_rad)
+    y_local = -x_global * math.sin(theta_rad) + y_global * math.cos(theta_rad)
+
+    # --- Rotasi (BARU) ---
+    # targetPosetheta HARUS dalam derajat, samakan satuan dengan theta_deg
+    vtheta = iK_move.PID_target_theta.PID_Calc(targetPosetheta, theta_deg)
+
+    rospy.loginfo(
+        f"target=({targetPosex:.1f},{targetPosey:.1f},{targetPosetheta:.1f}) | "
+        f"current=({currentPosex:.1f},{currentPosey:.1f},{theta_deg:.1f}) | "
+        f"local=({x_local:.1f},{y_local:.1f}) | vtheta={vtheta}"
+    )
+
+    w1, w2, w3, w4 = iK_move.perumusan(x_local, y_local, vtheta, 55)
+    speed.w1 = -w1
+    speed.w2 = -w2
+    speed.w3 = -w3
+    speed.w4 = -w4
     wheellSpeed_pub.publish(speed)
-        
 
 
 if __name__ == '__main__':
@@ -857,7 +890,7 @@ if __name__ == '__main__':
     # ---STRATEGY---
     strategy_get = rospy.Subscriber("/barracuda_strategy/strategy/targetPose", Pose2D, strategy_cb)
     #---CURRENT POSE---
-    current_pose_get = rospy.Subscriber("/barracuda_kinematic/odometry/eksternal/pose", currentPose, current_pose_cb)    
+    current_pose_get = rospy.Subscriber("/robot/kinematic/odometry/pose", Pose2D, current_pose_cb)    
     #---COMMAND---
     command_get = rospy.Subscriber("/barracuda_strategy/command/movement", Int8, command_cb)
     #---TAP TO MOVE---
@@ -872,5 +905,6 @@ if __name__ == '__main__':
         # DRIBLE_BALL/shootMode yang baru ditambahin nggak akan pernah kepanggil
         # kalau loop-nya tetap manggil mainRunV2(). Diganti ke runProgram() biar
         # state machine (STOP/GOTO_BALL/DRIBLE_BALL) beneran jalan.
-        runProgram()
+        # runProgram()
+        RunTtMC()
         rate.sleep()
