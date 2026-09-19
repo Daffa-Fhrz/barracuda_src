@@ -1,0 +1,43 @@
+<launch>
+    <!--
+        Ganti robot:   roslaunch <package_launch_ini> unlimited.launch robot:=cici
+        Atau set sekali per robot di ~/.bashrc:   export ROBOT_NAME=cici   (lalu roslaunch biasa)
+    -->
+    <arg name="robot"            default="$(optenv ROBOT_NAME cici)"/>  <!-- caca | cici -->
+    <arg name="kicker"           default="caca"/>   <!-- yang menendang kick-off; HARUS SAMA di kedua robot -->
+    <arg name="start_command"    default="0"/>      <!-- 0 = STOP (normal). 8 = tap-to-move, buat tes kinematic tanpa strategi -->
+
+    <include file="$(find yolo_barra)/launch/full_vision.launch" />
+
+    <node pkg="barracuda_odometry" type="eksternal.py" name="encoder_eksternal" output="screen"/>
+
+    <node pkg="barracuda_kinematic" type="IK_kinematic_v2.py" name="kinematika" output="screen">
+        <param name="start_command"     value="$(arg start_command)"/>
+        <!-- toleransi kinematic melapor "SAMPAI" ke titik (mm, derajat). KECIL = presisi; kalau motor punya deadband,
+             robot bisa berhenti sedikit sebelum titik -> besarkan nilai ini (atau andalkan penyelamat di strategi) -->
+        <param name="abs_pos_tol"       value="80"/>
+        <param name="abs_theta_tol"     value="5"/>
+    </node>
+
+    <!-- SATUAN: semua titik (referee box, TtMC, targetPose, odometry) dipakai APA ADANYA dalam mm, tanpa faktor skala. -->
+    <!-- jangan pakai respawn di strategi: tiap start dia mengkalibrasi frame dengan anggapan robot berdiri di titik Initial -->
+    <node pkg="barracuda_strat" type="unlimited_2026.py" name="strategi_unlimit" output="screen">
+        <param name="robot_name"          value="$(arg robot)"/>
+        <param name="kickoff_kicker"      value="$(arg kicker)"/>
+        <param name="field_width_mm"      value="8000"/>    <!-- sumbu x -->
+        <param name="field_length_mm"     value="12000"/>   <!-- sumbu y, arah serang -->
+        <param name="yaw_sign"            value="1.0"/>     <!-- ubah setelah tahu konvensi yaw basestation -->
+        <param name="yaw_offset_deg"      value="0.0"/>
+        <param name="calibrate_on_start"  value="true"/>
+        <!-- menuju titik referee box: PLAY MENUNGGU robot sampai. Penyelamat anti-macet + pengaman waktu: -->
+        <param name="arrive_soft_pos_mm"        value="150"/>   <!-- zona "hampir sampai" (penyelamat) -->
+        <param name="arrive_soft_theta_deg"     value="8"/>
+        <param name="arrive_soft_settle_sec"    value="3.0"/>   <!-- bertahan di zona itu segini lama = dianggap sampai -->
+        <param name="play_start_grace_sec"      value="10.0"/>  <!-- Play ditekan tapi belum sampai: maks segini lalu strategi mulai -->
+        <param name="play_start_in_soft_zone"   value="false"/> <!-- true = Play boleh mulai seketika begitu robot masuk zona hampir-sampai -->
+        <param name="restart_position_timeout_sec" value="40"/> <!-- belum sampai juga: berhenti mencoba (0 = tanpa batas) -->
+        <param name="local_en"            value="0"/>
+    </node>
+
+    <node pkg="barracuda_komunikasi" type="tobase.py" name="komunikasi_basest" output="screen"/>
+</launch>

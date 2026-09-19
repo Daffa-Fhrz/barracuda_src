@@ -79,7 +79,6 @@ class hsvball_front:
         height, width = cv_image.shape[:2]
         start_y = height // 2 
         end_y = height
-        rospy.logwarn(start_y)
 
         cv_image[365:end_y, 0:width] = 0
         if mode == 0:
