@@ -21,11 +21,11 @@
 
     <!-- SATUAN: semua titik (referee box, TtMC, targetPose, odometry) dipakai APA ADANYA dalam mm, tanpa faktor skala. -->
     <!-- jangan pakai respawn di strategi: tiap start dia mengkalibrasi frame dengan anggapan robot berdiri di titik Initial -->
-    <node pkg="barracuda_strat" type="unlimited_2026.py" name="strategi_unlimit" output="screen">
+    <node pkg="barracuda_strat" type="unlimited_2026_set.py" name="strategi_unlimit" output="screen">
         <param name="robot_name"          value="$(arg robot)"/>
         <param name="kickoff_kicker"      value="$(arg kicker)"/>
         <param name="field_width_mm"      value="8000"/>    <!-- sumbu x -->
-        <param name="field_length_mm"     value="12000"/>   <!-- sumbu y, arah serang -->
+        <param name="field_length_mm"     value="6000"/>   <!-- sumbu y, arah serang -->
         <param name="yaw_sign"            value="1.0"/>     <!-- ubah setelah tahu konvensi yaw basestation -->
         <param name="yaw_offset_deg"      value="0.0"/>
         <param name="calibrate_on_start"  value="true"/>

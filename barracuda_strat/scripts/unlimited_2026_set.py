@@ -1,16 +1,27 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Strategi KRSBI-B 2026 (Caca & Cici) -- versi yang jalan di atas IK_kinematic_v2.py
+Strategi KRSBI-B 2026 (Caca & Cici) -- VARIAN GAWANG BERSAMA / SETENGAH LAPANGAN.
 
-Satu file buat dua robot:
-    rosrun <pkg> unlimited_2026.py _robot_name:=caca
-    rosrun <pkg> unlimited_2026.py _robot_name:=cici
+Latihan dua robot sendiri (tanpa lawan) di setengah lapangan: cuma ada SATU gawang, di y=0 (dulu
+"gawang sendiri"), dipakai Caca MAUPUN Cici sebagai satu-satunya sasaran tembak. Titik Initial &
+referee box tetap sama (robot tetap mulai dekat gawang itu), tapi sekarang menyerangnya, bukan menjaganya.
 
-Yang DIPERTAHANKAN dari unlimited_2026_Caca/Cici.py:
-    - role (Attacker/Defender), GameState, dan logika tiap state
-    - cara menghadap gawang pas shooting (LEFT_GOAL / RIGHT_GOAL) & arah passing
-    - state machine referee box (Enable) + tabel Pose
+Karena cuma ada satu gawang, tidak ada lagi konsep bertahan (Attacker/Defender berbasis posisi lapangan
+di unlimited_2026.py). Diganti role STRIKER/SUPPORT berbasis kedekatan ke bola:
+    - Striker : pegang/kejar bola. Kalau sudah pegang, nembak kalau sudut pandang ke gawang sudah lega
+                ATAU sudah kelamaan pegang (shot clock, SHOT_CLOCK_SEC) ATAU teman gak ada; kalau belum
+                lega & masih ada waktu, oper dulu ke Support.
+    - Support : buka ruang di garis bola->gawang (agak ke depan bola, digeser ke samping), hadap bola,
+                siap terima kalau dioper. Begitu bola pindah tangan (ketangkap/pantul), role recompute
+                tiap loop, jadi robot yang lebih dekat otomatis jadi Striker berikutnya -- rebound
+                (bola pantul dari tembakan) otomatis dijemput tanpa perlu kode terpisah.
+Lihat SHOT_ANGLE_MIN_DEG / SHOT_CLOCK_SEC / ROLE_SWITCH_MARGIN / SUPPORT_LEAD_DIST / SUPPORT_LATERAL_OFFSET.
+
+Yang DIPERTAHANKAN APA ADANYA dari unlimited_2026.py (base): seluruh state machine referee box (Enable),
+tabel Pose & Initial, kick-off PASSING DULU (kicker/penerima), skrip Corner/PenaltyHome, ResetOdometry,
+toleransi "sampai titik" bertingkat, dan fitur batas lapangan (target digeser masuk, robot keluar -> STOP
++ terkunci + retry). Bagian itu TIDAK disentuh -- lihat penjelasan di bawah, sama seperti unlimited_2026.py.
 
 Yang DIGANTI: semua jalur ke robot sekarang lewat topic & perhitungan IK_kinematic
     (lihat tabel topic di bawah). Node ini TIDAK lagi butuh /action_executor/*.
@@ -35,8 +46,15 @@ ALUR REFEREE BOX (semua set piece menunggu juri menekan Play / Enable.OnPlay):
     Away (lawan): setelah Play, tunggu bola bergeser 1 m ATAU 7 detik (mana duluan), baru main.
 
 FRAME KOORDINAT: sama dengan basestation -> titik nol di POJOK KIRI BAWAH lapangan (kuadran 1),
-x ke kanan, y ke depan (arah serang), satuan tabel = mm, heading/yaw dalam derajat.
-Lapangan default 8000 x 12000 mm (_field_width_mm / _field_length_mm). Gawang lawan di y = panjang.
+x ke kanan, y ke depan, satuan tabel = mm, heading/yaw dalam derajat.
+Lapangan default 8000 x 6000 mm (SETENGAH dari 12000; _field_width_mm / _field_length_mm). Gawang
+satu-satunya ada di y=0 (dekat Initial) -- BUKAN di y=panjang seperti versi lapangan penuh.
+
+BATAS LAPANGAN: (1) target yang jatuh di luar lapangan (tabel referee box / hasil hitungan) DIGESER masuk;
+(2) bola yang diketahui di luar garis tidak dikejar; (3) kalau robot tetap keluar (dorongan, drift, overshoot):
+pose global di luar garis lebih dari _oob_margin_mm -> STOP, semua state dibatalkan, terkunci. Ditarik masuk lalu
+perintah juri dikirim ulang (atau Enable.ResetOdometry) -> state aktif DIULANG dari awal (retry).
+_oob_auto_resume:=true = retry otomatis tanpa perintah juri begitu robot kembali di dalam.
 
 SATUAN: semua koordinat dipakai APA ADANYA, TANPA faktor skala -- titik referee box, TtMC, targetPose,
 dan odometry memakai satuan yang sama (mm, sama dengan basestation). Jarak/toleransi di file ini juga mm.
@@ -44,11 +62,30 @@ Kalibrasi frame: robot dianggap BERDIRI di Pose 'Initial' saat node strategi sta
 (atau saat /robot/reset). Set _calibrate_on_start:=false kalau odometry sudah global.
 """
 import rospy
-from time import sleep
+import threading
+import time as _time
 from math import atan2, degrees, radians, sqrt, sin, cos
 from geometry_msgs.msg import Pose2D, Point
 from std_msgs.msg import Int8, Bool, Empty
 from enum import Enum
+
+_MAIN_THREAD = threading.current_thread()     # thread yang menjalankan loop utama strategi
+
+
+class OutOfBounds(Exception):
+    """Robot terdeteksi di LUAR lapangan -> semua state yang sedang berjalan dibatalkan (lihat checkBounds)."""
+
+
+outOfBounds = False        # True selama robot terkunci di luar lapangan
+
+
+def sleep(dt):
+    """Pengganti time.sleep untuk SEMUA penantian di strategi: begitu robot keluar lapangan, penantian
+    apa pun langsung dibatalkan (OutOfBounds) sehingga state tidak lanjut jalan."""
+    _time.sleep(dt)
+    if outOfBounds and threading.current_thread() is _MAIN_THREAD:
+        raise OutOfBounds()
+
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # KONFIGURASI
@@ -59,11 +96,6 @@ from enum import Enum
 # itu searah jarum jam, jadi dikali -1.
 # >>> TES: suruh robot hadap titik di kanan (+x). Kalau muternya kebalik, ganti jadi +1.0
 ANGLE_SIGN = -1.0
-
-# Kalau True: bola bebas -> robot yang paling dekat NGEJAR bola (Attacking_Attacker).
-# Kalau False: perilaku persis kode lama (robot terdekat malah ke attackerPosition
-# nunggu operan, dan robot satunya cuma nge-block).
-CHASE_FREE_BALL = True
 
 # --- Aturan set piece ---
 # SEMUA set piece menunggu juri menekan Play (OnPlay) sebelum robot mulai main/menendang.
@@ -88,6 +120,19 @@ ARRIVE_SOFT_THETA = 8.0        # deg
 ARRIVE_SOFT_SETTLE = 3.0       # detik
 PLAY_START_GRACE = 10.0        # detik
 PLAY_START_IN_SOFT_ZONE = False
+
+# --- BATAS LAPANGAN (frame pojok kiri bawah: x 0..FIELD_W, y 0..FIELD_L) ---
+# 1) Titik TARGET yang di luar lapangan (tabel referee box atau hasil hitungan) DIGESER masuk, minimal
+#    TARGET_MARGIN dari garis. 2) Kalau robot tetap keluar secara fisik (dorongan, mengejar bola keluar, drift,
+#    overshoot): pose global di luar garis lebih dari OOB_MARGIN -> STOP + semua state dibatalkan + terkunci.
+#    Ditarik masuk lalu perintah juri dikirim ulang (atau ResetOdometry) -> state aktif diulang dari awal (RETRY).
+OOB_ENABLED = True
+OOB_MARGIN = 200               # mm di luar garis sebelum dianggap keluar (odometry tidak persis; Initial y=-150 masih dianggap di dalam)
+OOB_RESUME_HYST = 25           # mm: harus kembali sekian di dalam toleransi sebelum boleh retry (anti-flapping)
+OOB_AUTO_RESUME = False        # True: retry OTOMATIS begitu robot kembali di dalam selama OOB_AUTO_RESUME_SEC (tanpa perintah juri)
+OOB_AUTO_RESUME_SEC = 2.0
+TARGET_MARGIN = 150            # mm: target digeser masuk minimal segini dari garis
+BALL_OUT_MARGIN = 300          # mm: bola diketahui di luar garis lebih dari ini -> tidak dikejar
 # Setelah robot SAMPAI di titik referee box dan menunggu Play:
 #   'stop' : perintah STOP (roda & dribbler mati) -> robot diam total sampai juri tekan Play
 #   'hold' : tetap GOTO_ABSPOSE (PID terus menahan posisi; motor tetap aktif mengoreksi)
@@ -126,7 +171,7 @@ AWAY_WAIT_TIMEOUT = 7.0
 # Lapangan KRSBI Beroda 8 m x 12 m (sesuai angka di tabel: x=4000 & y~6000 = garis tengah).
 # Ubah lewat param  _field_width_mm  _field_length_mm  kalau lapangan kalian beda.
 FIELD_WIDTH_MM = 8000      # sumbu x
-FIELD_LENGTH_MM = 12000    # sumbu y (arah serang: gawang lawan di y = FIELD_LENGTH)
+FIELD_LENGTH_MM = 6000     # sumbu y -- SETENGAH lapangan (dulu 12000). Override lewat param _field_length_mm.
 
 # Yaw di tabel -> heading frame strategi/odometry (0 = hadap +y, positif = CCW):
 #     heading = TABLE_YAW_SIGN * yaw + TABLE_YAW_OFFSET_DEG
@@ -136,15 +181,19 @@ TABLE_YAW_SIGN = 1.0
 TABLE_YAW_OFFSET_DEG = 0.0
 
 # Semua jarak di bawah dalam MM = satuan yang sama dengan titik referee box / TtMC / odometry.
-# Yang relatif terhadap garis tengah lapangan ditulis sebagai OFFSET.
-SAFE_RADIUS = 3000               # mm (3 m) dari gawang sendiri
-BLOCK_DIST = 1000                # mm (1 m)
-INTERCEPT_DIST = 1200            # mm
-DEFENSE_AREA_OFFSET = -1000      # "area aman" = y < garis tengah - 1 m (setengah lapangan sendiri)
-ATTACK_READY_OFFSET = 1000       # teman dianggap "siap diserahi bola" kalau y > garis tengah + 1 m
-DEFAULT_DEFENSE_OFFSET = -3000   # posisi jaga kalau bola tidak diketahui: 3 m di belakang garis tengah
+
+# --- GAWANG BERSAMA: satu-satunya gawang ada di y = 0 (dulu "gawang sendiri"), dipakai Caca MAUPUN
+# Cici sebagai satu-satunya sasaran tembak. Tidak ada gawang untuk dijaga, jadi tidak ada role bertahan. ---
 GOAL_POST_OFFSET = 800           # target tembak: +-80 cm dari tengah gawang (LEFT_GOAL / RIGHT_GOAL)
 FIELD_MARGIN = 300               # titik yang DIHITUNG robot dijaga minimal segini dari pagar
+
+# --- Striker & Support (lihat penjelasan di docstring atas) ---
+SHOT_ANGLE_MIN_DEG = 12.0    # sudut pandang ke gawang (tiang kiri ke tiang kanan) minimal segini baru MENEMBAK
+SHOT_CLOCK_SEC = 4.0         # pegang bola lebih lama dari ini -> WAJIB nembak walau sudut belum lebar (jangan macet oper-operan)
+ROLE_SWITCH_MARGIN = 300     # mm: role Striker cuma pindah kalau ROBOT LAIN lebih dekat ke bola minimal segini (anti kedip role)
+SUPPORT_LEAD_DIST = 1500     # mm: Support berdiri sejauh ini dari bola, ke ARAH gawang (di depan bola, siap kalau dioper)
+SUPPORT_LATERAL_OFFSET = 1200 # mm: Support digeser ke samping garis bola-gawang segini (biar gak segaris/nutupin bola)
+SUPPORT_MIN_FROM_GOAL = 1000  # mm: Support tidak berdiri lebih dekat dari ini ke gawang (kasih ruang buat robot lain nembak/rebound)
 
 BALL_MEMORY_SEC = 2.0       # bola dianggap "masih diketahui" segini lama setelah terakhir terlihat
 TEAMMATE_TIMEOUT = 2.0      # teman dianggap hilang kalau tidak ada pose segini lama
@@ -152,10 +201,10 @@ BALL_MOVED = 1000           # mm: set piece lawan -> bola dianggap sudah ditenda
 
 
 def setField(field_w_mm=None, field_l_mm=None):
-    """Hitung titik-titik lapangan (frame pojok kiri bawah, mm) dari ukuran lapangan."""
+    """Hitung titik-titik lapangan (frame pojok kiri bawah, mm) dari ukuran lapangan.
+    Lapangan sekarang SETENGAH panjang (default 8000 x 6000), dan gawang satu-satunya ada di y = 0."""
     global FIELD_WIDTH_MM, FIELD_LENGTH_MM, FIELD_W, FIELD_L, CX, CY
-    global goal, defense_goal, LEFT_GOAL, RIGHT_GOAL, DEFENSE_AREA, ATTACK_READY_Y
-    global DEFAULT_DEFENSE_POS, SUPPORT_Y
+    global goal, LEFT_GOAL, RIGHT_GOAL
     if field_w_mm is not None:
         FIELD_WIDTH_MM = field_w_mm
     if field_l_mm is not None:
@@ -164,14 +213,9 @@ def setField(field_w_mm=None, field_l_mm=None):
     FIELD_L = float(FIELD_LENGTH_MM)
     CX = FIELD_W / 2.0                  # garis tengah lebar
     CY = FIELD_L / 2.0                  # garis tengah panjang
-    goal = [CX, FIELD_L]                # gawang lawan (kita menyerang ke +y)
-    defense_goal = [CX, 0.0]            # gawang sendiri
-    LEFT_GOAL = [CX - GOAL_POST_OFFSET, FIELD_L]
-    RIGHT_GOAL = [CX + GOAL_POST_OFFSET, FIELD_L]
-    DEFENSE_AREA = CY + DEFENSE_AREA_OFFSET
-    ATTACK_READY_Y = CY + ATTACK_READY_OFFSET
-    DEFAULT_DEFENSE_POS = [CX, CY + DEFAULT_DEFENSE_OFFSET]
-    SUPPORT_Y = CY + SUPPORT_FORWARD
+    goal = [CX, 0.0]                    # SATU-SATUNYA gawang: di y=0, dekat titik Initial
+    LEFT_GOAL = [CX - GOAL_POST_OFFSET, 0.0]
+    RIGHT_GOAL = [CX + GOAL_POST_OFFSET, 0.0]
 
 
 def clampToField(x, y):
@@ -182,6 +226,27 @@ def clampToField(x, y):
 
 
 setField()
+
+boundsActive = False           # aktif setelah frame dikalibrasi di reset()
+oobSince = 0.0
+oobRestart = False             # ada perintah baru dari luar (juri/operator) sejak robot keluar
+oobInsideSince = None
+_lastBallOutLog = -1e9
+
+
+def outsideField(x, y, margin):
+    """True kalau (x, y) berada di luar garis lapangan lebih dari `margin` mm."""
+    return x < -margin or x > FIELD_W + margin or y < -margin or y > FIELD_L + margin
+
+
+def clampPose(pose):
+    """Geser target [x, y, heading] ke DALAM lapangan (minimal TARGET_MARGIN dari garis)."""
+    x = min(max(pose[0], TARGET_MARGIN), FIELD_W - TARGET_MARGIN)
+    y = min(max(pose[1], TARGET_MARGIN), FIELD_L - TARGET_MARGIN)
+    if abs(x - pose[0]) > 1.0 or abs(y - pose[1]) > 1.0:
+        rospy.logwarn("Titik target (%.0f, %.0f) di LUAR lapangan (%.0f x %.0f) -> digeser ke (%.0f, %.0f)"
+                      % (pose[0], pose[1], FIELD_W, FIELD_L, x, y))
+    return [x, y, pose[2]]
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -222,15 +287,10 @@ class Move(Enum):
 
 
 class Role(Enum):
-    Attacker = 0
-    Defender = 1
-
-
-class GameState(Enum):
-    Attacking_Attacker = 0
-    Attacking_Defender = 1
-    Defending_Defender = 2
-    Defending_Attacker = 3
+    """Tidak ada lagi Defender: satu gawang dipakai bersama, jadi keduanya selalu menyerang.
+    Striker = pegang/kejar bola & putuskan tembak atau oper. Support = buka ruang & siap terima."""
+    Striker = 0
+    Support = 1
 
 
 # ---- Titik referee box per robot. ISI/KOREKSI DI SINI setelah titik referee box fix. ----
@@ -256,12 +316,12 @@ POSES = {
         'DropBall':     [2000, 5000, 0],
         'KickOffHome':  [2000, 5900, 270],
         'KickOffAway':  [4000, 4300, 0],
-        'GoalKickHome': [5900, 1460, 0],
+        'GoalKickHome': [-2100, 1460, 0],
         'GoalKickAway': [4000, 4200, 0],
-        'FreeKickHome': [6000, 5400, 0],
-        'FreeKickAway': [5150, 3300, 338],
-        'CornerHome':   [8250, 100, 100],
-        'CornerAway':   [5300, 1000, 0],
+        'FreeKickHome': [-2000, 5400, 0],
+        'FreeKickAway': [-2850, 3300, 338],
+        'CornerHome':   [-250, 100, 100],
+        'CornerAway':   [-2700, 1000, 0],
         'PenaltyHome':  [4000, 5500, 0],
         'PenaltyAway':  [8000, 0, 0],
     },
@@ -285,8 +345,7 @@ IS_KICKER = True                # robot ini yang menendang kick-off (lihat KICKO
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 enable = Enable.Stop
-role = Role.Attacker
-gameState = GameState.Defending_Defender
+role = Role.Support
 
 currentPose = Pose2D()          # frame GLOBAL, theta DERAJAT (dikonversi dari odometry)
 odomPose = Pose2D()             # mentah dari odometry, theta DERAJAT
@@ -329,9 +388,57 @@ share_ball_pub = rospy.Publisher('/robot/ball_global', Point, queue_size=10)
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 def enHandler(data):
-    global enable
+    global enable, oobRestart
     enable = Enable(data.data)
     rospy.loginfo("Local Strategy : " + str(enable))
+    if outOfBounds and enable != Enable.Stop:
+        oobRestart = True          # perintah baru dari luar = permintaan RETRY (jalan kalau robot sudah di dalam)
+        rospy.logwarn("Perintah diterima saat robot terkunci di luar lapangan -> retry begitu robot kembali di dalam")
+
+
+def checkBounds():
+    """Watchdog: dipanggil tiap pose odometry masuk (thread callback). Robot di luar lapangan -> STOP + kunci."""
+    global outOfBounds, oobSince, oobRestart, oobInsideSince
+    if not (OOB_ENABLED and boundsActive) or outOfBounds:
+        return
+    if outsideField(currentPose.x, currentPose.y, OOB_MARGIN):
+        outOfBounds = True
+        oobSince = rospy.get_time()
+        oobRestart = False
+        oobInsideSince = None
+        command_pub.publish(Move.Stop.value)
+        rospy.logerr("KELUAR LAPANGAN di (%.0f, %.0f) [lapangan %.0f x %.0f, toleransi %.0f mm] -> STOP. Tarik robot ke "
+                     "dalam lapangan lalu kirim ulang perintah juri (atau ResetOdometry) untuk RETRY."
+                     % (currentPose.x, currentPose.y, FIELD_W, FIELD_L, OOB_MARGIN))
+
+
+def oobIdle():
+    """Robot terkunci di luar lapangan: STOP terus, tunggu ditarik masuk + perintah ulang dari luar, lalu lepas kunci
+    (loop utama lalu menjalankan ulang state yang aktif = RETRY)."""
+    global outOfBounds, oobRestart, oobInsideSince
+    last_stop = -1e9
+    while outOfBounds and not rospy.is_shutdown():
+        now = rospy.get_time()
+        if now - last_stop >= 1.0:
+            command_pub.publish(Move.Stop.value)
+            last_stop = now
+        if enable == Enable.ResetOdometry:          # robot diletakkan di Initial lalu direset dari luar
+            calibrateFrame(Pose.Initial)
+            endState(Enable.ResetOdometry)
+            oobRestart = True
+        back = not outsideField(currentPose.x, currentPose.y, OOB_MARGIN - OOB_RESUME_HYST)
+        if back:
+            if oobInsideSince is None:
+                oobInsideSince = now
+        else:
+            oobInsideSince = None
+        auto = OOB_AUTO_RESUME and back and (now - oobInsideSince) >= OOB_AUTO_RESUME_SEC
+        if back and (oobRestart or auto):
+            outOfBounds = False
+            oobRestart = False
+            rospy.logwarn("Kembali di dalam lapangan (%.0f, %.0f) -> RETRY state %s" % (currentPose.x, currentPose.y, enable))
+            return
+        _time.sleep(0.05)                           # sleep mentah (tanpa OutOfBounds)
 
 
 def odomPoseHandler(data):
@@ -347,6 +454,7 @@ def odomPoseHandler(data):
     currentPose = p
     poseReceived = True
     share_pose_pub.publish(p)
+    checkBounds()
 
 
 def kinStatusHandler(data):
@@ -479,67 +587,14 @@ def reset(calibrate=True):
     t0 = rospy.get_time()
     while not poseReceived and not rospy.is_shutdown():
         if rospy.get_time() - t0 > 5.0:
-            rospy.logwarn("Reset: belum ada data odometry (/robot/kinematic/odometry/pose)")
+            rospy.logwarn("Reset: belum ada data odometry (/robot/kinematic/odometry/pose) -> watchdog batas lapangan NONAKTIF")
             return
         sleep(0.1)
+    global boundsActive
     if calibrate:
         calibrateFrame(Pose.Initial)
+    boundsActive = True                          # watchdog batas lapangan aktif setelah frame dikalibrasi
     rospy.loginfo("Reset Done")
-
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# ROLE & GAME STATE  (logika lama, ditambah penanganan bola/teman tidak diketahui)
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-
-def updateRole():
-    global role
-    isInSafeArea = currentPose.y < DEFENSE_AREA
-
-    # robot dapat bola
-    if ballReached:
-        role = Role.Defender if isInSafeArea else Role.Attacker
-        return
-
-    # teman sendirian di lapangan -> main sebagai penyerang
-    if not teammateAlive():
-        role = Role.Attacker
-        return
-
-    # teman dapat bola
-    if teammateBallReached:
-        teammateInSafeArea = teammatePose.y < DEFENSE_AREA
-        role = Role.Attacker if teammateInSafeArea else Role.Defender
-        return
-
-    # bola bebas
-    ball = getBallPosition()
-    if ball is None:
-        return          # tidak ada yang tahu bola -> role tetap
-    my_dist = distance(myXY(), ball)
-    mate_dist = distance([teammatePose.x, teammatePose.y], ball)
-    # Dua robot pakai data yang sama, jadi aturannya harus saling melengkapi:
-    # kalau seri, Caca yang jadi Attacker, Cici jadi Defender (bukan dua-duanya sama).
-    if IS_CACA:
-        role = Role.Attacker if my_dist <= mate_dist else Role.Defender
-    else:
-        role = Role.Attacker if my_dist < mate_dist else Role.Defender
-
-
-def updateGameState():
-    global gameState
-    if ballReached:
-        gameState = (GameState.Attacking_Attacker if role == Role.Attacker
-                     else GameState.Attacking_Defender)
-    else:
-        if role == Role.Defender:
-            gameState = GameState.Defending_Defender
-        else:
-            # Attacker tapi belum pegang bola:
-            #   teman yang pegang bola -> posisi nunggu operan (logika lama)
-            #   bola bebas             -> kejar bola (CHASE_FREE_BALL)
-            if CHASE_FREE_BALL and not teammateBallReached:
-                gameState = GameState.Attacking_Attacker
-            else:
-                gameState = GameState.Defending_Attacker
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # PRIMITIF GERAK -> command ke kinematic
@@ -559,6 +614,10 @@ def publishTarget(x, y, theta):
 
 
 def sendCommand(move):
+    if outOfBounds and move != Move.Stop:
+        if threading.current_thread() is _MAIN_THREAD:
+            raise OutOfBounds()
+        return
     command_pub.publish(move.value)
 
 
@@ -633,6 +692,7 @@ def waitUntilBallMoved(timeout=None):
 def gotoPose(pose, timeout=20.0, abort=None, stay=None):
     """ABSPOSE: kirim target lalu TETAP di state ini sampai kinematic melapor sampai.
     Tidak ada pembatalan karena bola terlihat dsb. (abort hanya kalau dipasang eksplisit)."""
+    pose = clampPose(pose)                       # target di luar lapangan -> digeser masuk
     publishTarget(pose[0], pose[1], pose[2])
     sendCommand(Move.GotoAbsPose)
     return waitUntilDone(timeout, abort, stay)
@@ -657,6 +717,15 @@ def setTheta2Point(point):
 
 def gotoBall():
     """Kejar bola pakai kamera kinematic sampai ketangkap dribbler."""
+    global _lastBallOutLog
+    ball = getBallPosition()
+    if ball is not None and outsideField(ball[0], ball[1], BALL_OUT_MARGIN):
+        now = rospy.get_time()
+        if now - _lastBallOutLog > 3.0:
+            _lastBallOutLog = now
+            rospy.logwarn("Bola di luar lapangan (%.0f, %.0f) -> tidak dikejar" % (ball[0], ball[1]))
+        sleep(0.1)
+        return False
     sendCommand(Move.GotoBall)
     return waitUntilDone(12.0, abort=lambda: teammateBallReached or ownBallAge() > 2.0)
 
@@ -696,116 +765,115 @@ def PassBall(angle=None):
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# TAKTIK  (logika lama)
+# STRIKER & SUPPORT  (gawang bersama: satu gawang, keduanya selalu menyerang -- lihat docstring atas)
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-def AdvanceAttack():
-    gotoBall()                       # gerak HANYA berdasarkan state: GOTO_BALL (kinematic diam kalau bola tak terlihat)
-    if not waitUntilBallReached():
-        return
-
-    # target gawang (logika lama)
-    left_angle = abs(getAngle(currentPose, LEFT_GOAL))
-    right_angle = abs(getAngle(currentPose, RIGHT_GOAL))
-    shoot_target = LEFT_GOAL if left_angle < right_angle else RIGHT_GOAL
-
-    # hadap target + tendang dilakukan kinematic dalam SATU command (SHOOT)
-    ShootBall(getAngle(currentPose, shoot_target))
+possessionSince = None      # rospy.get_time() saat robot INI mulai pegang bola (buat shot clock); None = tidak pegang
 
 
-def AdvanceDefense():
+def openGoalAngleDeg():
+    """Lebar sudut pandang ke gawang dari posisi sekarang (derajat): makin besar = makin 'lega' buat nembak.
+    Ini BUKAN cuma jarak -- posisi mepet ke pinggir bisa dekat tapi sudutnya sempit (susah masuk)."""
+    aL = getAngle(currentPose, LEFT_GOAL)
+    aR = getAngle(currentPose, RIGHT_GOAL)
+    return abs(wrap180(aL - aR))
+
+
+def bestGoalHeading():
+    """Tiang mana yang paling sedikit muternya dari heading sekarang -> itu yang dibidik."""
+    aL = getAngle(currentPose, LEFT_GOAL)
+    aR = getAngle(currentPose, RIGHT_GOAL)
+    turnL = abs(wrap180(aL - currentPose.theta))
+    turnR = abs(wrap180(aR - currentPose.theta))
+    return aL if turnL <= turnR else aR
+
+
+def supportTarget():
+    """Ke mana Support seharusnya berdiri: di GARIS bola->gawang, agak ke depan bola (arah gawang) supaya
+    langsung siap kalau dioper, digeser ke SAMPING garis itu (biar gak segaris & gak nutupin jalur tembak/oper),
+    dan tidak terlalu mepet mulut gawang (kasih ruang buat Striker & buat rebound)."""
     ball = getBallPosition()
     if ball is None:
-        gotoPosition(DEFAULT_DEFENSE_POS)
-        return
-
-    dx = defense_goal[0] - ball[0]
-    dy = defense_goal[1] - ball[1]
-    norm = sqrt(dx * dx + dy * dy)
-    if norm == 0:
-        return
-
-    # garis blocking antara bola dan gawang sendiri
-    block_x = ball[0] + (dx / norm) * BLOCK_DIST
-    block_y = ball[1] + (dy / norm) * BLOCK_DIST
-    gotoPosition(clampToField(block_x, block_y))
-
-    ball = getBallPosition() or ball
-
-    # membayangi
-    if distance(ball, defense_goal) > SAFE_RADIUS:
-        retreat_x = block_x + (dx / norm) * 400
-        retreat_y = block_y + (dy / norm) * 400
-        gotoPosition(clampToField(retreat_x, retreat_y))
-    else:
-        gotoBall()
-
-    # pressing
-    ball = getBallPosition() or ball
-    if distance(myXY(), ball) < INTERCEPT_DIST:
-        gotoBall()
-
-
-def defenderPass():
-    # robot pegang bola tapi ada di area aman -> oper ke teman yang di depan
-    angle = getAngle(currentPose, [teammatePose.x, teammatePose.y])
-    isAttackerReady = teammateAlive() and teammatePose.y > ATTACK_READY_Y
-    if isAttackerReady:
-        PassBall(angle)                 # operan = tendang pelan
-    else:
-        setTheta(angle)                 # hadap teman sambil nahan bola, tunggu dia siap
-        sleep(0.2)
-
-
-def supportPoint():
-    """Titik dukung: sisi lapangan BERLAWANAN dari teman (dicerminkan terhadap garis tengah lebar),
-    agak maju dari garis tengah panjang (logika lama attackerPosition, sekarang di frame pojok kiri bawah).
-    Ditambah jaga jarak: robot tidak saling deteksi, jadi jangan berdiri terlalu dekat teman."""
-    teman_di_kanan = teammatePose.x > CX
-    tx = CX - SUPPORT_LATERAL if teman_di_kanan else CX + SUPPORT_LATERAL
-    ty = SUPPORT_Y
-    if teammateAlive() and distance([tx, ty], [teammatePose.x, teammatePose.y]) < SUPPORT_MIN_SEPARATION:
-        tx += (-1 if teman_di_kanan else 1) * SUPPORT_MIN_SEPARATION  # geser menjauh dari teman
+        return clampToField(CX, min(SUPPORT_LEAD_DIST + SUPPORT_MIN_FROM_GOAL, FIELD_L - FIELD_MARGIN))
+    dx, dy = goal[0] - ball[0], goal[1] - ball[1]
+    d = sqrt(dx * dx + dy * dy)
+    ux, uy = (dx / d, dy / d) if d > 1.0 else (0.0, -1.0)     # arah satuan bola -> gawang
+    px, py = -uy, ux                                          # tegak lurus arah itu
+    lead = min(SUPPORT_LEAD_DIST, max(0.0, d - SUPPORT_MIN_FROM_GOAL))   # jangan lewat gawang / kelewat mepet
+    side = -1.0 if ball[0] >= CX else 1.0                      # sisi berlawanan dari posisi bola thd tengah lapangan
+    tx = ball[0] + ux * lead + px * SUPPORT_LATERAL_OFFSET * side
+    ty = ball[1] + uy * lead + py * SUPPORT_LATERAL_OFFSET * side
     return clampToField(tx, ty)
 
 
-def attackerPosition():
-    gotoPosition(supportPoint())
+def updateRole():
+    """Role = siapa lebih dekat ke bola (bukan lagi posisi lapangan, karena cuma ada satu gawang).
+    ROLE_SWITCH_MARGIN = histeresis: Striker cuma lepas peran kalau robot lain BENAR-BENAR lebih dekat,
+    supaya tidak kedip-kedip pas jaraknya hampir sama. Seri persis -> Caca menang (konsisten dgn kode lama)."""
+    global role
+    if ballReached:
+        role = Role.Striker
+        return
+    if teammateBallReached:
+        role = Role.Support
+        return
+    if not teammateAlive():
+        role = Role.Striker           # sendirian di lapangan -> ya jelas Striker
+        return
+    ball = getBallPosition()
+    if ball is None:
+        return                        # tidak ada yang tahu bola -> role tetap apa adanya
+    my_dist = distance(myXY(), ball)
+    mate_dist = distance([teammatePose.x, teammatePose.y], ball)
+    if role == Role.Striker:
+        # tetap Striker KECUALI teman sudah lebih dekat minimal ROLE_SWITCH_MARGIN
+        role = Role.Support if mate_dist < my_dist - ROLE_SWITCH_MARGIN else Role.Striker
+    elif my_dist < mate_dist - ROLE_SWITCH_MARGIN:
+        role = Role.Striker             # jelas lebih dekat -> ambil alih
+    elif IS_CACA and abs(my_dist - mate_dist) <= ROLE_SWITCH_MARGIN:
+        role = Role.Striker             # seri (dalam ambang) -> Caca yang menang
+    else:
+        role = Role.Support
 
-    # hadap ke teman, lalu nunggu operan
-    setTheta(getAngle(currentPose, [teammatePose.x, teammatePose.y]))
-    WaitBall()
+
+def doStriker():
+    """Belum pegang bola -> kejar (GOTO_BALL, kinematic sendiri yang diam kalau bola gak keliatan).
+    Sudah pegang -> nembak kalau sudut gawang udah lega ATAU sudah kelamaan pegang (shot clock, biar gak
+    macet oper-operan nunggu sudut sempurna) ATAU teman gak ada; kalau belum, oper ke teman dulu."""
+    global possessionSince
+    if not ballReached:
+        possessionSince = None
+        gotoBall()
+        return
+    if possessionSince is None:
+        possessionSince = rospy.get_time()
+    held_for = rospy.get_time() - possessionSince
+    angle = openGoalAngleDeg()
+    if angle >= SHOT_ANGLE_MIN_DEG or held_for >= SHOT_CLOCK_SEC or not teammateAlive():
+        ShootBall(bestGoalHeading())
+        possessionSince = None
+    else:
+        PassBall(getAngle(currentPose, [teammatePose.x, teammatePose.y]))
+        possessionSince = None
 
 
-def state_Attacking_Attacker():
-    AdvanceAttack()
-
-
-def state_Attacking_Defender():
-    defenderPass()
-
-
-def state_Defending_Defender():
-    AdvanceDefense()
-
-
-def state_Defending_Attacker():
-    attackerPosition()
+def doSupport():
+    """Buka ruang di titik dukung (lihat supportTarget), hadap bola, siap kalau dioper. Timeout pendek
+    biar sering dihitung ulang -- bola/Striker terus bergerak, jangan lama-lama nuju titik basi."""
+    tx, ty = supportTarget()
+    ball = getBallPosition()
+    heading = getAngle(currentPose, ball) if ball is not None else currentPose.theta
+    gotoPose([tx, ty, heading], timeout=4.0)
 
 
 def Play():
     while enable == Enable.OnPlay and not rospy.is_shutdown():
         updateRole()
-        updateGameState()
 
-        if gameState == GameState.Attacking_Attacker:
-            state_Attacking_Attacker()
-        elif gameState == GameState.Attacking_Defender:
-            state_Attacking_Defender()
-        elif gameState == GameState.Defending_Defender:
-            state_Defending_Defender()
-        elif gameState == GameState.Defending_Attacker:
-            state_Defending_Attacker()
+        if role == Role.Striker:
+            doStriker()
+        else:
+            doSupport()
 
         sleep(0.05)
 
@@ -883,17 +951,23 @@ def waitArrived(target, stay, timeout, play_grace):
 
 def gotoPoseSoft(pose, stay, play_grace=False):
     """ABSPOSE dengan toleransi bertingkat (lihat waitArrived). Return status waitArrived."""
+    pose = clampPose(pose)                       # target di luar lapangan -> digeser masuk
     publishTarget(pose[0], pose[1], pose[2])
     sendCommand(Move.GotoAbsPose)
     return waitArrived(pose, stay, RESTART_POSITION_TIMEOUT, play_grace)
 
 
+positionStatus = None     # status akhir restartPosition terakhir: arrived | close | timeout | gave_up | abort | stopped
+
+
 def restartPosition(pose, en):
     """Setelah juri klik set piece `en`: ke titik referee box (toleransi bertingkat, ada batas waktu).
     Return True kalau dianggap sampai / boleh lanjut. SET_PIECE_MOVE_TO_POSE = False: tidak bergerak, robot di-STOP."""
+    global positionStatus
     if SET_PIECE_MOVE_TO_POSE:
-        status = gotoPoseSoft(pose, (en, Enable.OnPlay), play_grace=True)
-        return status in ('arrived', 'close', 'timeout', 'gave_up')
+        positionStatus = gotoPoseSoft(pose, (en, Enable.OnPlay), play_grace=True)
+        return positionStatus in ('arrived', 'close', 'timeout', 'gave_up')
+    positionStatus = 'stopped'
     command_pub.publish(Move.Stop.value)
     return False
 
@@ -927,7 +1001,7 @@ def kickerPass():
         return
     PassBall(getAngle(currentPose, [teammatePose.x, teammatePose.y]))   # tendang pelan ke teman
     if KICKER_AFTER_PASS == 'support':
-        sx, sy = supportPoint()
+        sx, sy = supportTarget()
         # menghadap teman waktu jalan; berhenti kalau juri ganti state
         gotoPose([sx, sy, getAngle(currentPose, [teammatePose.x, teammatePose.y])], timeout=8.0)
         sendCommand(Move.WaitBall)       # hadap bola, roller pelan -> siap kalau dioper balik
@@ -993,8 +1067,9 @@ def awayRestart(en, pose):
     """Set piece LAWAN: ke titik, hadap bola, diam, tunggu Play, lalu tunggu bola
     bergeser 1 m ATAU 7 detik (mana yang duluan) baru main."""
     arrived = restartPosition(pose, en)
-    if enable == en and SET_PIECE_MOVE_TO_POSE:
-        FaceBall()                       # hadap bola dulu, baru diam
+    if enable == en and SET_PIECE_MOVE_TO_POSE and positionStatus in ('arrived', 'close'):
+        FaceBall()                       # hadap bola dulu, baru diam. HANYA kalau benar-benar sampai:
+                                         # kalau batas waktu habis (belum sampai) -> langsung STOP, tidak memutar badan
     settleForPlay(en, arrived)
     idleWhile(en)
     if enable == Enable.OnPlay:
@@ -1112,6 +1187,11 @@ if __name__ == '__main__':
     PLAY_START_IN_SOFT_ZONE = bool(rospy.get_param("~play_start_in_soft_zone", PLAY_START_IN_SOFT_ZONE))
     _t = rospy.get_param("~restart_position_timeout_sec", RESTART_POSITION_TIMEOUT)
     RESTART_POSITION_TIMEOUT = None if _t is None or float(_t) <= 0 else float(_t)      # <=0 : tanpa batas waktu
+    OOB_ENABLED = bool(rospy.get_param("~oob_enabled", OOB_ENABLED))
+    OOB_MARGIN = float(rospy.get_param("~oob_margin_mm", OOB_MARGIN))
+    OOB_AUTO_RESUME = bool(rospy.get_param("~oob_auto_resume", OOB_AUTO_RESUME))
+    OOB_AUTO_RESUME_SEC = float(rospy.get_param("~oob_auto_resume_sec", OOB_AUTO_RESUME_SEC))
+    TARGET_MARGIN = float(rospy.get_param("~target_margin_mm", TARGET_MARGIN))
     setField(float(rospy.get_param("~field_width_mm", FIELD_WIDTH_MM)),
              float(rospy.get_param("~field_length_mm", FIELD_LENGTH_MM)))
     Pose = PoseTable(POSES[robot_name])
@@ -1120,8 +1200,8 @@ if __name__ == '__main__':
     rospy.loginfo("Strategy: %s (%s kick-off) | titik dipakai APA ADANYA (mm, tanpa skala) | ANGLE_SIGN=%s"
                   % (robot_name, "KICKER" if IS_KICKER else "PENERIMA", ANGLE_SIGN))
     rospy.loginfo("Initial=%s KickOffHome=%s" % (Pose.Initial, Pose.KickOffHome))
-    rospy.loginfo("Lapangan %dx%d mm | gawang lawan=(%.0f, %.0f) gawang sendiri=(%.0f, %.0f) | yaw = %.0f*yaw%+.0f"
-                  % (FIELD_WIDTH_MM, FIELD_LENGTH_MM, goal[0], goal[1], defense_goal[0], defense_goal[1],
+    rospy.loginfo("Lapangan %dx%d mm | GAWANG BERSAMA di (%.0f, %.0f) | yaw = %.0f*yaw%+.0f"
+                  % (FIELD_WIDTH_MM, FIELD_LENGTH_MM, goal[0], goal[1],
                      TABLE_YAW_SIGN, TABLE_YAW_OFFSET_DEG))
 
     enable = Enable(int(rospy.get_param("~local_en", 0)))
@@ -1144,7 +1224,13 @@ if __name__ == '__main__':
     reset(calibrate=bool(rospy.get_param("~calibrate_on_start", True)))
 
     while not rospy.is_shutdown():
-        runReferee()
+        try:
+            if outOfBounds:
+                oobIdle()               # terkunci di luar lapangan: STOP, tunggu ditarik masuk + perintah ulang
+            else:
+                runReferee()
+        except OutOfBounds:
+            pass                        # state yang sedang jalan dibatalkan; putaran berikut masuk oobIdle()
         rospy.Rate(20).sleep()
 
     rospy.spin()
